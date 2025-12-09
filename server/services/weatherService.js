@@ -1,8 +1,42 @@
 import fetch from 'node-fetch';
 
+// Normalize location names to match geocoding API expectations
+function normalizeLocationName(location) {
+  const normalizations = {
+    // Countries
+    'United States of America': 'United States',
+    'USA': 'United States',
+    'U.S.A.': 'United States',
+    'U.S.': 'United States',
+    'UK': 'United Kingdom',
+    'U.K.': 'United Kingdom',
+    'UAE': 'United Arab Emirates',
+    'Russia': 'Russian Federation',
+    'South Korea': 'Korea',
+    'North Korea': 'Korea',
+
+    // Islands and Territories (abbreviated in map)
+    'Solomon Is.': 'Solomon Islands',
+    'Falkland Is.': 'Falkland Islands',
+    'Fr. S. Antarctic Lands': 'French Southern and Antarctic Lands',
+    'N. Mariana Is.': 'Northern Mariana Islands',
+    'Marshall Is.': 'Marshall Islands',
+    'Cook Is.': 'Cook Islands',
+    'Br. Indian Ocean Ter.': 'British Indian Ocean Territory',
+    'U.S. Virgin Is.': 'United States Virgin Islands',
+    'Cayman Is.': 'Cayman Islands',
+    'Turks and Caicos Is.': 'Turks and Caicos Islands',
+    'Br. Virgin Is.': 'British Virgin Islands',
+  };
+
+  return normalizations[location] || location;
+}
+
 // Geocoding API to convert location name to coordinates
 async function geocodeLocation(location) {
-  const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`;
+  // Normalize the location name first
+  const normalizedLocation = normalizeLocationName(location);
+  const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalizedLocation)}&count=1&language=en&format=json`;
 
   const response = await fetch(geocodingUrl);
   const data = await response.json();
@@ -20,6 +54,58 @@ async function geocodeLocation(location) {
     countryCode: result.country_code?.toUpperCase() || 'N/A',
     admin1: result.admin1 || '',
     timezone: result.timezone || 'UTC'
+  };
+}
+
+// Reverse Geocoding API to convert coordinates to location name
+async function reverseGeocode(latitude, longitude) {
+  // Use BigDataCloud's free reverse geocoding API (no API key required)
+  const reverseGeoUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+
+  try {
+    const response = await fetch(reverseGeoUrl);
+    const data = await response.json();
+
+    if (data) {
+      // Clean country name - remove "(the)" suffix
+      const cleanCountry = (data.countryName || 'Unknown').replace(/\s*\(the\)\s*/gi, '').trim();
+
+      // Build location string with available data, avoiding duplicates
+      const parts = [];
+      const city = data.city || data.locality;
+      const region = data.principalSubdivision;
+
+      if (city) parts.push(city);
+
+      // Only add region if it's different from city
+      if (region && region !== city && !city?.includes(region)) {
+        parts.push(region);
+      }
+
+      // Only add country if we have a city or region
+      if (parts.length > 0 && cleanCountry !== 'Unknown') {
+        parts.push(cleanCountry);
+      }
+
+      return {
+        name: parts.length > 0 ? parts.join(', ') : `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        country: cleanCountry,
+        countryCode: data.countryCode || 'N/A',
+        admin1: region || '',
+        timezone: 'UTC'
+      };
+    }
+  } catch (error) {
+    console.error('Reverse geocoding failed:', error);
+  }
+
+  // Final fallback: return coordinates as name
+  return {
+    name: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+    country: 'Unknown',
+    countryCode: 'N/A',
+    admin1: '',
+    timezone: 'UTC'
   };
 }
 
@@ -91,6 +177,17 @@ export async function getWeatherByCoordinates(latitude, longitude, locationName 
     throw new Error('Weather data not available');
   }
 
+  // If no location name provided, reverse geocode the coordinates
+  let finalLocationName = locationName;
+  let finalCountryCode = countryCode;
+
+  if (!locationName) {
+    const geoData = await reverseGeocode(latitude, longitude);
+    // Use the pre-formatted name from reverseGeocode (already includes city, region, country)
+    finalLocationName = geoData.name;
+    finalCountryCode = geoData.countryCode;
+  }
+
   const current = data.current;
   const condition = getWeatherCondition(current.weather_code);
   const temp = current.temperature_2m;
@@ -98,8 +195,8 @@ export async function getWeatherByCoordinates(latitude, longitude, locationName 
   const windSpeed = current.wind_speed_10m;
 
   return {
-    location: locationName || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`,
-    isoCode: countryCode || 'N/A',
+    location: finalLocationName,
+    isoCode: finalCountryCode,
     temperature: `${Math.round(temp)}°C`,
     condition: condition,
     humidity: `${humidity}%`,
@@ -132,4 +229,47 @@ export async function getWeatherByLocation(location) {
     locationString,
     geoData.countryCode
   );
+}
+
+// Fetch 7-day forecast
+export async function get7DayForecast(latitude, longitude, locationName = null, countryCode = null) {
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`;
+
+  const response = await fetch(forecastUrl);
+  const data = await response.json();
+
+  if (!data.daily) {
+    throw new Error('Forecast data not available');
+  }
+
+  // If no location name provided, reverse geocode the coordinates
+  let finalLocationName = locationName;
+  let finalCountryCode = countryCode;
+
+  if (!locationName) {
+    const geoData = await reverseGeocode(latitude, longitude);
+    finalLocationName = geoData.name;
+    finalCountryCode = geoData.countryCode;
+  }
+
+  const daily = data.daily;
+  const forecast = [];
+
+  for (let i = 0; i < 7; i++) {
+    forecast.push({
+      date: daily.time[i],
+      tempMax: `${Math.round(daily.temperature_2m_max[i])}°C`,
+      tempMin: `${Math.round(daily.temperature_2m_min[i])}°C`,
+      condition: getWeatherCondition(daily.weather_code[i]),
+      precipitationChance: `${daily.precipitation_probability_max[i] || 0}%`,
+      windSpeed: `${Math.round(daily.wind_speed_10m_max[i])} km/h`
+    });
+  }
+
+  return {
+    location: finalLocationName,
+    isoCode: finalCountryCode,
+    timezone: data.timezone,
+    forecast: forecast
+  };
 }

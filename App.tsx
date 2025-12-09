@@ -4,8 +4,10 @@ import Header from './components/Header';
 import WorldMap from './components/WorldMap';
 import WeatherCard from './components/WeatherCard';
 import CountryTransition from './components/CountryTransition';
-import { getWeather } from './services/weatherService';
-import { WeatherResult, TransitionData } from './types';
+import Favorites from './components/Favorites';
+import Dashboard from './components/Dashboard';
+import { getWeather, getWeatherByCoordinates } from './services/weatherService';
+import { WeatherResult, TransitionData, FavoriteLocation } from './types';
 
 const App: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
@@ -18,6 +20,32 @@ const App: React.FC = () => {
   // Animation State
   const [transitionData, setTransitionData] = useState<TransitionData | null>(null);
   const [isExiting, setIsExiting] = useState(false);
+
+  // Dashboard State
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number; name: string } | undefined>(undefined);
+
+  // Favorites State
+  const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem('panahon_favorites');
+    if (savedFavorites) {
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (err) {
+        console.error('Error loading favorites:', err);
+      }
+    }
+  }, []);
+
+  // Save favorites to localStorage whenever they change
+  useEffect(() => {
+    if (favorites.length > 0) {
+      localStorage.setItem('panahon_favorites', JSON.stringify(favorites));
+    }
+  }, [favorites]);
 
   const handleStart = () => {
     setHasStarted(true);
@@ -96,6 +124,81 @@ const App: React.FC = () => {
     setLoading(false);
     setIsExiting(false);
   };
+
+  // Current Location Handler
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const data = await getWeatherByCoordinates(latitude, longitude);
+          setWeatherData(data);
+          // Save user location for dashboard
+          setUserLocation({ lat: latitude, lon: longitude, name: data.location });
+        } catch (err: any) {
+          setError(err.message || 'Failed to fetch weather for your location');
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        setLoading(false);
+        setError('Unable to retrieve your location. Please check permissions.');
+        console.error('Geolocation error:', error);
+      }
+    );
+  };
+
+  // Dashboard Handler
+  const handleToggleDashboard = () => {
+    setIsDashboardOpen(!isDashboardOpen);
+  };
+
+  // Favorites Handlers
+  const addToFavorites = () => {
+    if (!weatherData) return;
+
+    const newFavorite: FavoriteLocation = {
+      name: weatherData.location,
+      isoCode: weatherData.isoCode,
+      timestamp: Date.now(),
+    };
+
+    // Check if already in favorites
+    const exists = favorites.some(fav => fav.name === newFavorite.name);
+    if (!exists) {
+      setFavorites([...favorites, newFavorite]);
+    }
+  };
+
+  const removeFromFavorites = (name: string) => {
+    setFavorites(favorites.filter(fav => fav.name !== name));
+  };
+
+  const handleSelectFavorite = async (name: string) => {
+    setLoading(true);
+    setError(null);
+    setQuery(name);
+
+    try {
+      const data = await getWeather(name);
+      setWeatherData(data);
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isFavorite = weatherData ? favorites.some(fav => fav.name === weatherData.location) : false;
 
   return (
     <div className="relative w-screen h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2e1065] to-[#4c1d95] overflow-hidden font-sans">
@@ -196,10 +299,19 @@ const App: React.FC = () => {
         </form>
       </div>
 
-      <Header 
-        showControls={hasStarted} 
-        onToggleSearch={() => setIsSearchOpen(!isSearchOpen)} 
+      <Header
+        showControls={hasStarted}
+        onToggleSearch={() => setIsSearchOpen(!isSearchOpen)}
         isSearchOpen={isSearchOpen}
+        onCurrentLocation={handleCurrentLocation}
+        onToggleDashboard={handleToggleDashboard}
+      />
+
+      {/* Dashboard Modal */}
+      <Dashboard
+        isOpen={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+        userLocation={userLocation}
       />
 
       {/* Transition Overlay */}
@@ -221,10 +333,12 @@ const App: React.FC = () => {
         {/* Results Card */}
         {weatherData && (
           <div className="pointer-events-auto perspective-1000 w-full flex justify-center">
-             <WeatherCard 
-                data={weatherData} 
-                onClose={handleCloseCard} 
+             <WeatherCard
+                data={weatherData}
+                onClose={handleCloseCard}
                 isExiting={isExiting}
+                onToggleFavorite={addToFavorites}
+                isFavorite={isFavorite}
              />
           </div>
         )}
@@ -238,6 +352,14 @@ const App: React.FC = () => {
         )}
 
       </main>
+
+      {/* Favorites Bar */}
+      <Favorites
+        favorites={favorites}
+        onSelectFavorite={handleSelectFavorite}
+        onRemoveFavorite={removeFromFavorites}
+        isVisible={hasStarted && !weatherData && !loading}
+      />
     </div>
   );
 };

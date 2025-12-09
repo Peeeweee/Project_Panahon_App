@@ -6,9 +6,11 @@ interface WeatherCardProps {
   data: WeatherResult;
   onClose: () => void;
   isExiting: boolean;
+  onToggleFavorite?: () => void;
+  isFavorite?: boolean;
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting }) => {
+const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite }) => {
   
   // Extract main temperature number safely
   const mainTemp = useMemo(() => {
@@ -118,15 +120,35 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting }) =
         */}
         <div className="absolute inset-0 rounded-[2rem] border border-white/10 shadow-2xl pointer-events-none"></div>
 
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 z-50 p-2 bg-black/20 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white backdrop-blur-md"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-4 right-4 z-50 flex gap-2">
+          {/* Favorite Button */}
+          {onToggleFavorite && (
+            <button
+              onClick={onToggleFavorite}
+              className={`p-2 rounded-full transition-all backdrop-blur-md ${
+                isFavorite
+                  ? 'bg-yellow-500/30 hover:bg-yellow-500/40 text-yellow-300'
+                  : 'bg-black/20 hover:bg-white/10 text-white/50 hover:text-white'
+              }`}
+              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="p-2 bg-black/20 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white backdrop-blur-md"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
 
         {/* LEFT PANEL: Transparent for Country View 
             - Mobile: h-64 (Fixed height to reserve space for animation)

@@ -29,3 +29,9 @@ export interface TransitionData {
 export interface WorldMapProps {
   onRegionClick?: (regionName: string, pathData: string, rect: DOMRect) => void;
 }
+
+export interface FavoriteLocation {
+  name: string;
+  isoCode: string;
+  timestamp: number;
+}

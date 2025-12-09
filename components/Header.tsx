@@ -4,22 +4,50 @@ interface HeaderProps {
     showControls: boolean;
     onToggleSearch: () => void;
     isSearchOpen: boolean;
+    onCurrentLocation: () => void;
+    onToggleDashboard: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen }) => {
+const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen, onCurrentLocation, onToggleDashboard }) => {
   return (
     <header className="fixed top-0 left-0 w-full z-40 p-6 flex items-center justify-end pointer-events-none">
-        
+
         {/* Right Side Controls */}
-        <div className={`flex items-center gap-6 transition-all duration-1000 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
-            
+        <div className={`flex items-center gap-3 transition-all duration-1000 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
+
             {/* Date Display */}
             <div className="hidden md:block text-white/40 text-sm font-mono tracking-wider">
                 {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric'})}
             </div>
 
+            {/* Dashboard Button */}
+            <button
+                type="button"
+                onClick={onToggleDashboard}
+                className="pointer-events-auto p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 group"
+                title="Weather Dashboard"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+            </button>
+
+            {/* Current Location Button */}
+            <button
+                type="button"
+                onClick={onCurrentLocation}
+                className="pointer-events-auto p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 group"
+                title="Use my location"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+
             {/* Search Toggle Button */}
-            <button 
+            <button
+                type="button"
                 onClick={onToggleSearch}
                 className={`pointer-events-auto p-3 rounded-full transition-all duration-300 ${isSearchOpen ? 'bg-white text-purple-900 rotate-90' : 'bg-white/10 hover:bg-white/20 text-white'}`}
             >
