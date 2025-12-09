@@ -8,6 +8,7 @@ import Favorites from './components/Favorites';
 import Dashboard from './components/Dashboard';
 import { getWeather, getWeatherByCoordinates } from './services/weatherService';
 import { WeatherResult, TransitionData, FavoriteLocation } from './types';
+import { TemperatureUnit } from './utils/temperatureUtils';
 
 const App: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
@@ -28,7 +29,10 @@ const App: React.FC = () => {
   // Favorites State
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
 
-  // Load favorites from localStorage on mount
+  // Temperature Unit State
+  const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('C');
+
+  // Load favorites and temperature unit from localStorage on mount
   useEffect(() => {
     const savedFavorites = localStorage.getItem('panahon_favorites');
     if (savedFavorites) {
@@ -38,6 +42,11 @@ const App: React.FC = () => {
         console.error('Error loading favorites:', err);
       }
     }
+
+    const savedUnit = localStorage.getItem('panahon_temperature_unit');
+    if (savedUnit === 'C' || savedUnit === 'F') {
+      setTemperatureUnit(savedUnit);
+    }
   }, []);
 
   // Save favorites to localStorage whenever they change
@@ -46,6 +55,11 @@ const App: React.FC = () => {
       localStorage.setItem('panahon_favorites', JSON.stringify(favorites));
     }
   }, [favorites]);
+
+  // Save temperature unit to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('panahon_temperature_unit', temperatureUnit);
+  }, [temperatureUnit]);
 
   const handleStart = () => {
     setHasStarted(true);
@@ -160,6 +174,44 @@ const App: React.FC = () => {
   // Dashboard Handler
   const handleToggleDashboard = () => {
     setIsDashboardOpen(!isDashboardOpen);
+  };
+
+  // Temperature Unit Toggle Handler
+  const handleToggleTemperatureUnit = () => {
+    setTemperatureUnit((prevUnit: TemperatureUnit) => prevUnit === 'C' ? 'F' : 'C');
+  };
+
+  // Share Weather Handler
+  const handleShareWeather = async () => {
+    if (!weatherData) return;
+
+    const shareText = `🌤️ Weather in ${weatherData.location}\n${weatherData.temperature} - ${weatherData.condition}\n💧 Humidity: ${weatherData.humidity}\n💨 Wind: ${weatherData.wind}\n\nVia Panahon Weather App`;
+    const shareUrl = window.location.href;
+
+    // Check if Web Share API is available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Weather in ${weatherData.location}`,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or error occurred
+        console.log('Share cancelled or failed:', err);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+        // Show a temporary success message
+        setError('Weather info copied to clipboard! ✓');
+        setTimeout(() => setError(null), 2000);
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err);
+        setError('Unable to share. Please try again.');
+      }
+    }
   };
 
   // Favorites Handlers
@@ -305,6 +357,8 @@ const App: React.FC = () => {
         isSearchOpen={isSearchOpen}
         onCurrentLocation={handleCurrentLocation}
         onToggleDashboard={handleToggleDashboard}
+        temperatureUnit={temperatureUnit}
+        onToggleTemperatureUnit={handleToggleTemperatureUnit}
       />
 
       {/* Dashboard Modal */}
@@ -312,6 +366,7 @@ const App: React.FC = () => {
         isOpen={isDashboardOpen}
         onClose={() => setIsDashboardOpen(false)}
         userLocation={userLocation}
+        temperatureUnit={temperatureUnit}
       />
 
       {/* Transition Overlay */}
@@ -339,6 +394,8 @@ const App: React.FC = () => {
                 isExiting={isExiting}
                 onToggleFavorite={addToFavorites}
                 isFavorite={isFavorite}
+                temperatureUnit={temperatureUnit}
+                onShare={handleShareWeather}
              />
           </div>
         )}

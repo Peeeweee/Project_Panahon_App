@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TemperatureUnit, convertTemperature } from '../utils/temperatureUtils';
 
 interface ForecastDay {
   date: string;
@@ -28,9 +29,10 @@ interface DashboardProps {
   isOpen: boolean;
   onClose: () => void;
   userLocation?: { lat: number; lon: number; name: string };
+  temperatureUnit: TemperatureUnit;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation }) => {
+const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation, temperatureUnit }) => {
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [globalWeather, setGlobalWeather] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -172,8 +174,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation }) 
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-white">{day.tempMax}</div>
-                      <div className="text-white/60 text-sm">{day.tempMin}</div>
+                      <div className="text-2xl font-bold text-white">{convertTemperature(day.tempMax, 'C', temperatureUnit)}</div>
+                      <div className="text-white/60 text-sm">{convertTemperature(day.tempMin, 'C', temperatureUnit)}</div>
                     </div>
                   </div>
                 </div>
@@ -198,7 +200,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation }) 
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-3xl font-bold text-white">{city.temperature}</div>
+                      <div className="text-3xl font-bold text-white">{convertTemperature(city.temperature, 'C', temperatureUnit)}</div>
                       <div className="text-white/60 text-sm">{city.condition}</div>
                     </div>
                   </div>

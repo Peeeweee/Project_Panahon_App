@@ -1,4 +1,5 @@
 import React from 'react';
+import { TemperatureUnit } from '../utils/temperatureUtils';
 
 interface HeaderProps {
     showControls: boolean;
@@ -6,9 +7,11 @@ interface HeaderProps {
     isSearchOpen: boolean;
     onCurrentLocation: () => void;
     onToggleDashboard: () => void;
+    temperatureUnit: TemperatureUnit;
+    onToggleTemperatureUnit: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen, onCurrentLocation, onToggleDashboard }) => {
+const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen, onCurrentLocation, onToggleDashboard, temperatureUnit, onToggleTemperatureUnit }) => {
   return (
     <header className="fixed top-0 left-0 w-full z-40 p-6 flex items-center justify-end pointer-events-none">
 
@@ -19,6 +22,16 @@ const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchO
             <div className="hidden md:block text-white/40 text-sm font-mono tracking-wider">
                 {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric'})}
             </div>
+
+            {/* Temperature Unit Toggle */}
+            <button
+                type="button"
+                onClick={onToggleTemperatureUnit}
+                className="pointer-events-auto px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 group font-mono font-bold"
+                title={`Switch to °${temperatureUnit === 'C' ? 'F' : 'C'}`}
+            >
+                °{temperatureUnit}
+            </button>
 
             {/* Dashboard Button */}
             <button

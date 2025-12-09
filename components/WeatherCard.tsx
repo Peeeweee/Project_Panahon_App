@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { WeatherResult } from '../types';
+import { TemperatureUnit, convertTemperature } from '../utils/temperatureUtils';
 
 interface WeatherCardProps {
   data: WeatherResult;
@@ -8,15 +9,22 @@ interface WeatherCardProps {
   isExiting: boolean;
   onToggleFavorite?: () => void;
   isFavorite?: boolean;
+  temperatureUnit: TemperatureUnit;
+  onShare?: () => void;
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite }) => {
-  
+const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare }) => {
+
+  // Convert temperature to selected unit
+  const displayTemp = useMemo(() => {
+    return convertTemperature(data.temperature, 'C', temperatureUnit);
+  }, [data.temperature, temperatureUnit]);
+
   // Extract main temperature number safely
   const mainTemp = useMemo(() => {
-    const match = data.temperature.match(/(-?\d+)/);
+    const match = displayTemp.match(/(-?\d+)/);
     return match ? match[0] : "--";
-  }, [data.temperature]);
+  }, [displayTemp]);
 
   // Determine Icon based on condition keywords with ANIMATIONS
   const WeatherIcon = useMemo(() => {
@@ -122,6 +130,19 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
 
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 z-50 flex gap-2">
+          {/* Share Button */}
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="p-2 bg-black/20 hover:bg-blue-500/30 rounded-full transition-all text-white/50 hover:text-white backdrop-blur-md group"
+              title="Share weather"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            </button>
+          )}
+
           {/* Favorite Button */}
           {onToggleFavorite && (
             <button
@@ -188,7 +209,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
                   </span>
                   <div className="flex flex-col text-white/40 text-[10px] font-medium pb-1.5">
                     <span>Current</span>
-                    <span>{data.temperature}</span>
+                    <span>{displayTemp}</span>
                   </div>
               </div>
 
