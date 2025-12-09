@@ -9,9 +9,11 @@ interface HeaderProps {
     onToggleDashboard: () => void;
     temperatureUnit: TemperatureUnit;
     onToggleTemperatureUnit: () => void;
+    viewMode: 'map' | 'list';
+    onToggleView: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen, onCurrentLocation, onToggleDashboard, temperatureUnit, onToggleTemperatureUnit }) => {
+const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchOpen, onCurrentLocation, onToggleDashboard, temperatureUnit, onToggleTemperatureUnit, viewMode, onToggleView }) => {
   return (
     <header className="fixed top-0 left-0 w-full z-40 p-6 flex items-center justify-end pointer-events-none">
 
@@ -22,6 +24,24 @@ const Header: React.FC<HeaderProps> = ({ showControls, onToggleSearch, isSearchO
             <div className="hidden md:block text-white/40 text-sm font-mono tracking-wider">
                 {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric'})}
             </div>
+
+            {/* View Toggle Button (Map/List) */}
+            <button
+                type="button"
+                onClick={onToggleView}
+                className="pointer-events-auto p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-300 group"
+                title={viewMode === 'map' ? 'Switch to List View' : 'Switch to Map View'}
+            >
+                {viewMode === 'map' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                )}
+            </button>
 
             {/* Temperature Unit Toggle */}
             <button

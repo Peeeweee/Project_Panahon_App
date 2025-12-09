@@ -6,9 +6,11 @@ import WeatherCard from './components/WeatherCard';
 import CountryTransition from './components/CountryTransition';
 import Favorites from './components/Favorites';
 import Dashboard from './components/Dashboard';
+import CountryListView from './components/CountryListView';
 import { getWeather, getWeatherByCoordinates } from './services/weatherService';
 import { WeatherResult, TransitionData, FavoriteLocation } from './types';
 import { TemperatureUnit } from './utils/temperatureUtils';
+import { Country } from './data/countries';
 
 const App: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
@@ -31,6 +33,9 @@ const App: React.FC = () => {
 
   // Temperature Unit State
   const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('C');
+
+  // View Mode State (Map or List)
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
   // Load favorites and temperature unit from localStorage on mount
   useEffect(() => {
@@ -179,6 +184,29 @@ const App: React.FC = () => {
   // Temperature Unit Toggle Handler
   const handleToggleTemperatureUnit = () => {
     setTemperatureUnit((prevUnit: TemperatureUnit) => prevUnit === 'C' ? 'F' : 'C');
+  };
+
+  // View Mode Toggle Handler
+  const handleToggleView = () => {
+    setViewMode((prevMode) => prevMode === 'map' ? 'list' : 'map');
+  };
+
+  // Country Selection Handler (from List View)
+  const handleSelectCountry = async (country: Country) => {
+    setLoading(true);
+    setError(null);
+    setWeatherData(null);
+    setIsExiting(false);
+
+    try {
+      const data = await getWeatherByCoordinates(country.coordinates.lat, country.coordinates.lon);
+      setWeatherData(data);
+      setUserLocation({ lat: country.coordinates.lat, lon: country.coordinates.lon, name: data.location });
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch weather data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Share Weather Handler
@@ -359,6 +387,14 @@ const App: React.FC = () => {
         onToggleDashboard={handleToggleDashboard}
         temperatureUnit={temperatureUnit}
         onToggleTemperatureUnit={handleToggleTemperatureUnit}
+        viewMode={viewMode}
+        onToggleView={handleToggleView}
+      />
+
+      {/* Country List View */}
+      <CountryListView
+        isVisible={hasStarted && viewMode === 'list' && !weatherData && !loading}
+        onSelectCountry={handleSelectCountry}
       />
 
       {/* Dashboard Modal */}
@@ -415,7 +451,7 @@ const App: React.FC = () => {
         favorites={favorites}
         onSelectFavorite={handleSelectFavorite}
         onRemoveFavorite={removeFromFavorites}
-        isVisible={hasStarted && !weatherData && !loading}
+        isVisible={hasStarted && viewMode === 'map' && !weatherData && !loading}
       />
     </div>
   );
