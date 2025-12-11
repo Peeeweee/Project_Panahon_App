@@ -111,10 +111,8 @@ const App: React.FC = () => {
 
     getWeather(regionName)
       .then(data => {
-        // Minimal delay to ensure animation has time to look cool before data pops in
-        setTimeout(() => {
-          setWeatherData(data);
-        }, 800);
+        // Show data immediately for faster UX
+        setWeatherData(data);
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
@@ -405,8 +403,8 @@ const App: React.FC = () => {
         temperatureUnit={temperatureUnit}
       />
 
-      {/* Transition Overlay */}
-      {transitionData && <CountryTransition data={transitionData} isExiting={isExiting} />}
+      {/* Transition Overlay - DISABLED: Now handled inside WeatherCard */}
+      {/* {transitionData && <CountryTransition data={transitionData} isExiting={isExiting} />} */}
 
       {/* Main Container for Cards */}
       <main className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-center p-4">
@@ -432,6 +430,14 @@ const App: React.FC = () => {
                 isFavorite={isFavorite}
                 temperatureUnit={temperatureUnit}
                 onShare={handleShareWeather}
+                initialPosition={transitionData?.initialRect ? {
+                  x: transitionData.initialRect.x + transitionData.initialRect.width / 2,
+                  y: transitionData.initialRect.y + transitionData.initialRect.height / 2,
+                  width: transitionData.initialRect.width,
+                  height: transitionData.initialRect.height
+                } : undefined}
+                countryPath={transitionData?.path}
+                countryRect={transitionData?.initialRect}
              />
           </div>
         )}

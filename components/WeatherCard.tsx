@@ -11,9 +11,34 @@ interface WeatherCardProps {
   isFavorite?: boolean;
   temperatureUnit: TemperatureUnit;
   onShare?: () => void;
+  initialPosition?: { x: number; y: number; width: number; height: number };
+  countryPath?: string; // SVG path data for the country
+  countryRect?: DOMRect; // Original position of the country on map
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare }) => {
+const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare, initialPosition, countryPath, countryRect }) => {
+
+  // Calculate transform from country position to card position
+  const initialTransform = useMemo(() => {
+    if (!initialPosition) return { x: 0, y: 0, scale: 1 };
+
+    // Card final position (center of viewport, slightly left)
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const cardFinalX = viewportWidth / 2;
+    const cardFinalY = viewportHeight / 2;
+
+    // Calculate the difference from country position to card center
+    const deltaX = initialPosition.x - cardFinalX;
+    const deltaY = initialPosition.y - cardFinalY;
+
+    // Calculate scale from country size to card size
+    const scaleX = initialPosition.width / 800; // Assuming card width ~800px
+    const scaleY = initialPosition.height / 400; // Assuming card height ~400px
+    const scale = Math.min(scaleX, scaleY, 0.3); // Start small
+
+    return { x: deltaX, y: deltaY, scale };
+  }, [initialPosition]);
 
   // Convert temperature to selected unit
   const displayTemp = useMemo(() => {
@@ -25,6 +50,16 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
     const match = displayTemp.match(/(-?\d+)/);
     return match ? match[0] : "--";
   }, [displayTemp]);
+
+  // Determine weather type for background effects
+  const weatherType = useMemo(() => {
+    const c = data.condition.toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return 'rain';
+    if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist')) return 'cloudy';
+    if (c.includes('snow') || c.includes('ice') || c.includes('blizzard')) return 'snow';
+    if (c.includes('storm') || c.includes('thunder')) return 'storm';
+    return 'clear';
+  }, [data.condition]);
 
   // Determine Icon based on condition keywords with ANIMATIONS
   const WeatherIcon = useMemo(() => {
@@ -109,17 +144,48 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           20% { opacity: 1; }
           100% { transform: translateY(12px) rotate(180deg); opacity: 0; }
         }
+        @keyframes slideToCard {
+          0% {
+            transform: translate(${initialTransform.x}px, ${initialTransform.y}px) scale(${initialTransform.scale});
+            opacity: 0.3;
+          }
+          50% {
+            opacity: 0.8;
+          }
+          100% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes countrySlideIn {
+          0% {
+            transform: translate(0, 0) scale(1);
+            opacity: 0.2;
+          }
+          100% {
+            transform: translate(${countryRect ? `calc(50% - ${countryRect.left + countryRect.width / 2}px), calc(50% - ${countryRect.top + countryRect.height / 2}px)` : '0, 0'}) scale(${countryRect ? Math.min(3, 300 / Math.max(countryRect.width, countryRect.height)) : 1});
+            opacity: 0.85;
+          }
+        }
       `}</style>
 
-      <div 
+      <div
           className={`
-              transition-all duration-700 ease-in-out
-              ${isExiting ? 'opacity-0 scale-95 translate-y-4' : 'opacity-100 scale-100 translate-y-0 animate-in fade-in slide-in-from-bottom-10'}
+              transition-all duration-500 ease-in-out
+              ${isExiting ? 'opacity-0 scale-95 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}
               max-w-3xl w-full mx-4 md:mx-0
-              rounded-[2rem] 
+              rounded-[2rem]
               flex flex-col md:flex-row min-h-[380px]
               relative group
           `}
+          style={{
+            transform: isExiting
+              ? 'translateY(1rem) scale(0.95)'
+              : initialPosition
+                ? `translate(${initialTransform.x}px, ${initialTransform.y}px) scale(${initialTransform.scale})`
+                : 'translate(0, 0) scale(1)',
+            animation: initialPosition ? 'slideToCard 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none'
+          }}
       >
         {/* 
             Main Container Border/Shadow Layer
@@ -171,14 +237,50 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           </button>
         </div>
 
-        {/* LEFT PANEL: Transparent for Country View 
+        {/* LEFT PANEL: Transparent for Country View
             - Mobile: h-64 (Fixed height to reserve space for animation)
             - Desktop: h-auto (Full height)
         */}
-        <div className="w-full md:w-1/2 h-64 md:h-auto relative flex flex-col items-center justify-end p-6 overflow-hidden rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none shrink-0">
-          {/* Dynamic Watermark at bottom */}
-          <div className="text-white/[0.05] font-black text-[5rem] md:text-[8rem] select-none pointer-events-none leading-none tracking-tighter mix-blend-overlay" style={{ fontFamily: 'Inter, sans-serif' }}>
-              {data.isoCode || "WRLD"}
+        <div className="w-full md:w-1/2 h-64 md:h-auto relative flex flex-col items-center justify-center p-6 overflow-hidden rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none shrink-0">
+
+          {/* Country SVG Animation - Embedded directly in left panel */}
+          {countryPath && countryRect && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{
+                opacity: isExiting ? 0 : 0.85,
+                transition: 'opacity 800ms ease-out'
+              }}
+            >
+              <defs>
+                <linearGradient id="countryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(167, 139, 250, 0.8)" />
+                  <stop offset="100%" stopColor="rgba(76, 29, 149, 1)" />
+                </linearGradient>
+                <filter id="countryShadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#000" floodOpacity="0.4" />
+                </filter>
+              </defs>
+              <path
+                d={countryPath}
+                fill="url(#countryGradient)"
+                stroke="rgba(255, 255, 255, 0.5)"
+                strokeWidth={0.8}
+                filter="url(#countryShadow)"
+                style={{
+                  transformOrigin: `${countryRect.left + countryRect.width / 2}px ${countryRect.top + countryRect.height / 2}px`,
+                  vectorEffect: 'non-scaling-stroke',
+                  animation: 'countrySlideIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                }}
+              />
+            </svg>
+          )}
+
+          {/* Country ISO Code at bottom */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20">
+            <div className="text-white/40 font-bold text-sm tracking-widest uppercase">
+              {data.isoCode || "WORLD"}
+            </div>
           </div>
         </div>
 

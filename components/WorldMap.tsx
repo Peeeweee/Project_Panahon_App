@@ -38,6 +38,37 @@ const WorldMap: React.FC<WorldMapProps> = ({ onRegionClick }) => {
 
     const g = svg.append("g");
 
+    // Add SVG definitions (filters, gradients, etc.)
+    const defs = svg.append("defs");
+
+    // Create gradient for animated hover effect
+    const gradient = defs.append("linearGradient")
+      .attr("id", "hoverGradient")
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", "100%")
+      .attr("y2", "100%");
+
+    gradient.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", "rgba(167, 139, 250, 0.6)")
+      .attr("stop-opacity", 1);
+
+    gradient.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", "rgba(139, 92, 246, 0.6)")
+      .attr("stop-opacity", 1);
+
+    // Add glowing effect filter
+    const filter = defs.append("filter")
+      .attr("id", "glow");
+    filter.append("feGaussianBlur")
+      .attr("stdDeviation", "2.5")
+      .attr("result", "coloredBlur");
+    const feMerge = filter.append("feMerge");
+    feMerge.append("feMergeNode").attr("in", "coloredBlur");
+    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
     // Draw Countries
     g.selectAll("path")
       .data(worldData.features)
@@ -50,13 +81,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ onRegionClick }) => {
       .attr("stroke", "rgba(255, 255, 255, 0.1)") // Subtle stroke
       .attr("stroke-width", 0.5)
       .style("cursor", "pointer")
-      .style("transition", "fill 0.3s ease, stroke 0.3s ease") 
+      .style("transition", "fill 0.5s ease, stroke 0.5s ease, stroke-width 0.5s ease")
+      .style("vector-effect", "non-scaling-stroke") // Keep stroke width constant
+      .style("pointer-events", "visiblePainted") // Only trigger on visible areas
       .on("mouseover", function() {
         d3.select(this)
-          .attr("fill", "rgba(167, 139, 250, 0.4)") // Highlight color (purple-400)
+          .attr("fill", "url(#hoverGradient)") // Use gradient fill
           .attr("stroke", "rgba(255, 255, 255, 1)") // Prominent white stroke
-          .attr("stroke-width", 1.5)
-          .raise(); // Bring to front
+          .attr("stroke-width", 1.5); // Thicker stroke but contained
       })
       .on("mouseout", function() {
         d3.select(this)
@@ -70,21 +102,16 @@ const WorldMap: React.FC<WorldMapProps> = ({ onRegionClick }) => {
           const pathData = d3.select(this).attr("d");
           // Capture the exact screen position of this element
           const rect = this.getBoundingClientRect();
-          
+
+          // Hide this country on the map during transition
+          d3.select(this)
+            .transition()
+            .duration(100)
+            .style("opacity", 0);
+
           onRegionClick(d.properties.name, pathData, rect);
         }
       });
-
-    // Add a glowing effect definition
-    const defs = svg.append("defs");
-    const filter = defs.append("filter")
-      .attr("id", "glow");
-    filter.append("feGaussianBlur")
-      .attr("stdDeviation", "2.5")
-      .attr("result", "coloredBlur");
-    const feMerge = filter.append("feMerge");
-    feMerge.append("feMergeNode").attr("in", "coloredBlur");
-    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
   }, [worldData, onRegionClick]);
 

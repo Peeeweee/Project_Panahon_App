@@ -6,9 +6,40 @@ interface CountryListViewProps {
   isVisible: boolean;
 }
 
+// Get themed gradient for each country based on their flag colors or culture
+const getCountryGradient = (countryCode: string): string => {
+  const gradients: { [key: string]: string } = {
+    // Popular countries with themed gradients
+    'PH': 'linear-gradient(135deg, rgba(0, 56, 168, 0.6) 0%, rgba(206, 17, 38, 0.6) 100%)', // Philippines: Blue & Red
+    'US': 'linear-gradient(135deg, rgba(60, 59, 110, 0.6) 0%, rgba(178, 34, 52, 0.6) 100%)', // USA: Navy & Red
+    'JP': 'linear-gradient(135deg, rgba(188, 0, 45, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%)', // Japan: Red & White
+    'FR': 'linear-gradient(135deg, rgba(0, 85, 164, 0.6) 0%, rgba(239, 65, 53, 0.6) 100%)', // France: Blue & Red
+    'IT': 'linear-gradient(135deg, rgba(0, 146, 70, 0.6) 0%, rgba(206, 43, 55, 0.6) 100%)', // Italy: Green & Red
+    'CN': 'linear-gradient(135deg, rgba(238, 28, 37, 0.6) 0%, rgba(255, 222, 0, 0.6) 100%)', // China: Red & Gold
+    'GB': 'linear-gradient(135deg, rgba(1, 33, 105, 0.6) 0%, rgba(200, 16, 46, 0.6) 100%)', // UK: Blue & Red
+    'AU': 'linear-gradient(135deg, rgba(0, 0, 139, 0.6) 0%, rgba(255, 215, 0, 0.6) 100%)', // Australia: Blue & Gold
+    'BR': 'linear-gradient(135deg, rgba(0, 156, 59, 0.6) 0%, rgba(254, 223, 0, 0.6) 100%)', // Brazil: Green & Yellow
+    'IN': 'linear-gradient(135deg, rgba(255, 153, 51, 0.6) 0%, rgba(19, 136, 8, 0.6) 100%)', // India: Saffron & Green
+    'EG': 'linear-gradient(135deg, rgba(206, 17, 38, 0.6) 0%, rgba(255, 215, 0, 0.6) 100%)', // Egypt: Red & Gold
+    'GR': 'linear-gradient(135deg, rgba(13, 94, 175, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%)', // Greece: Blue & White
+    'ES': 'linear-gradient(135deg, rgba(198, 11, 30, 0.6) 0%, rgba(255, 196, 0, 0.6) 100%)', // Spain: Red & Yellow
+    'TH': 'linear-gradient(135deg, rgba(45, 42, 74, 0.6) 0%, rgba(166, 25, 46, 0.6) 100%)', // Thailand: Navy & Red
+    'TR': 'linear-gradient(135deg, rgba(227, 10, 23, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%)', // Turkey: Red & White
+    'MX': 'linear-gradient(135deg, rgba(0, 104, 71, 0.6) 0%, rgba(206, 17, 38, 0.6) 100%)', // Mexico: Green & Red
+    'KR': 'linear-gradient(135deg, rgba(0, 71, 160, 0.6) 0%, rgba(205, 28, 38, 0.6) 100%)', // South Korea: Blue & Red
+    'CA': 'linear-gradient(135deg, rgba(255, 0, 0, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%)', // Canada: Red & White
+    'DE': 'linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(255, 206, 0, 0.6) 100%)', // Germany: Black & Gold
+    'RU': 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(213, 43, 30, 0.6) 100%)', // Russia: White & Red
+  };
+
+  // Return themed gradient or default purple gradient
+  return gradients[countryCode] || 'linear-gradient(135deg, rgba(147, 51, 234, 0.5) 0%, rgba(79, 70, 229, 0.5) 100%)';
+};
+
 const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVisible }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
+  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
 
   // Filter countries based on search and selected continent
   const filteredCountries = useMemo(() => {
@@ -101,26 +132,96 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                     <span className="text-white/40 text-sm ml-auto">{continent.countries.length} countries</span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {continent.countries.map((country) => (
-                      <button
+                      <div
                         key={country.code}
-                        onClick={() => handleCountryClick(country)}
-                        className="group bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 hover:border-purple-400/50 rounded-xl p-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 text-left"
+                        className="relative"
+                        style={{
+                          height: hoveredCountry === country.code ? '200px' : '140px',
+                          transition: 'height 500ms ease-in-out'
+                        }}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">{country.flag}</span>
-                          <span className="text-xs text-white/40 font-mono">{country.code}</span>
-                        </div>
-                        <div className="text-white font-medium text-sm group-hover:text-purple-200 transition-colors">
-                          {country.name}
-                        </div>
-                        {country.capital && (
-                          <div className="text-white/50 text-xs mt-1">
-                            {country.capital}
+                        <button
+                          onClick={() => handleCountryClick(country)}
+                          onMouseEnter={() => setHoveredCountry(country.code)}
+                          onMouseLeave={() => setHoveredCountry(null)}
+                          className="absolute inset-0 border border-white/10 rounded-xl overflow-hidden transition-all duration-500 text-left shadow-lg hover:shadow-2xl hover:shadow-purple-500/40 hover:border-purple-400"
+                          style={{
+                            background: hoveredCountry === country.code
+                              ? getCountryGradient(country.code)
+                              : 'rgba(255, 255, 255, 0.05)'
+                          }}
+                        >
+                        {/* Animated Gradient Overlay on Hover */}
+                        <div
+                          className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-transparent to-indigo-900/40 transition-opacity duration-500"
+                          style={{
+                            opacity: hoveredCountry === country.code ? 1 : 0,
+                            zIndex: 1
+                          }}
+                        />
+
+                        {/* Content */}
+                        <div className="relative p-4 flex flex-col h-full transition-all duration-500" style={{ zIndex: 2 }}>
+                          {/* Top section - always visible */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              className="transition-all duration-500"
+                              style={{
+                                fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
+                              }}
+                            >
+                              {country.flag}
+                            </span>
+                            <span className="text-xs text-white/40 font-mono transition-colors duration-300">
+                              {country.code}
+                            </span>
                           </div>
-                        )}
-                      </button>
+
+                          {/* Country name */}
+                          <div
+                            className="text-white font-medium transition-all duration-500"
+                            style={{
+                              fontSize: hoveredCountry === country.code ? '1.125rem' : '0.875rem',
+                              fontWeight: hoveredCountry === country.code ? 700 : 500,
+                              color: hoveredCountry === country.code ? 'rgb(233, 213, 255)' : 'white'
+                            }}
+                          >
+                            {country.name}
+                          </div>
+
+                          {/* Capital - always visible */}
+                          {country.capital && (
+                            <div
+                              className="text-white/50 transition-all duration-300 mt-1"
+                              style={{
+                                fontSize: hoveredCountry === country.code ? '0.875rem' : '0.75rem',
+                                opacity: hoveredCountry === country.code ? 1 : 0.7
+                              }}
+                            >
+                              {country.capital}
+                            </div>
+                          )}
+
+                          {/* Expanded content on hover */}
+                          <div
+                            className="transition-all duration-500 overflow-hidden"
+                            style={{
+                              maxHeight: hoveredCountry === country.code ? '100px' : '0px',
+                              opacity: hoveredCountry === country.code ? 1 : 0,
+                              marginTop: hoveredCountry === country.code ? '12px' : '0px'
+                            }}
+                          >
+                            <div className="pt-3 border-t border-white/20">
+                              <div className="text-white/60 text-xs">
+                                📍 {country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -137,26 +238,96 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                 {selectedContinent && ` in ${selectedContinent}`}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filteredCountries.map((country) => (
-                  <button
+                  <div
                     key={country.code}
-                    onClick={() => handleCountryClick(country)}
-                    className="group bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 hover:border-purple-400/50 rounded-xl p-4 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 text-left"
+                    className="relative"
+                    style={{
+                      height: hoveredCountry === country.code ? '200px' : '140px',
+                      transition: 'height 500ms ease-in-out'
+                    }}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">{country.flag}</span>
-                      <span className="text-xs text-white/40 font-mono">{country.code}</span>
-                    </div>
-                    <div className="text-white font-medium text-sm group-hover:text-purple-200 transition-colors">
-                      {country.name}
-                    </div>
-                    {country.capital && (
-                      <div className="text-white/50 text-xs mt-1">
-                        {country.capital}
+                    <button
+                      onClick={() => handleCountryClick(country)}
+                      onMouseEnter={() => setHoveredCountry(country.code)}
+                      onMouseLeave={() => setHoveredCountry(null)}
+                      className="absolute inset-0 border border-white/10 rounded-xl overflow-hidden transition-all duration-500 text-left shadow-lg hover:shadow-2xl hover:shadow-purple-500/40 hover:border-purple-400"
+                      style={{
+                        background: hoveredCountry === country.code
+                          ? getCountryGradient(country.code)
+                          : 'rgba(255, 255, 255, 0.05)'
+                      }}
+                    >
+                    {/* Animated Gradient Overlay on Hover */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-transparent to-indigo-900/40 transition-opacity duration-500"
+                      style={{
+                        opacity: hoveredCountry === country.code ? 1 : 0,
+                        zIndex: 1
+                      }}
+                    />
+
+                    {/* Content */}
+                    <div className="relative p-4 flex flex-col h-full transition-all duration-500" style={{ zIndex: 2 }}>
+                      {/* Top section - always visible */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span
+                          className="transition-all duration-500"
+                          style={{
+                            fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
+                          }}
+                        >
+                          {country.flag}
+                        </span>
+                        <span className="text-xs text-white/40 font-mono transition-colors duration-300">
+                          {country.code}
+                        </span>
                       </div>
-                    )}
-                  </button>
+
+                      {/* Country name */}
+                      <div
+                        className="text-white font-medium transition-all duration-500"
+                        style={{
+                          fontSize: hoveredCountry === country.code ? '1.125rem' : '0.875rem',
+                          fontWeight: hoveredCountry === country.code ? 700 : 500,
+                          color: hoveredCountry === country.code ? 'rgb(233, 213, 255)' : 'white'
+                        }}
+                      >
+                        {country.name}
+                      </div>
+
+                      {/* Capital - always visible */}
+                      {country.capital && (
+                        <div
+                          className="text-white/50 transition-all duration-300 mt-1"
+                          style={{
+                            fontSize: hoveredCountry === country.code ? '0.875rem' : '0.75rem',
+                            opacity: hoveredCountry === country.code ? 1 : 0.7
+                          }}
+                        >
+                          {country.capital}
+                        </div>
+                      )}
+
+                      {/* Expanded content on hover */}
+                      <div
+                        className="transition-all duration-500 overflow-hidden"
+                        style={{
+                          maxHeight: hoveredCountry === country.code ? '100px' : '0px',
+                          opacity: hoveredCountry === country.code ? 1 : 0,
+                          marginTop: hoveredCountry === country.code ? '12px' : '0px'
+                        }}
+                      >
+                        <div className="pt-3 border-t border-white/20">
+                          <div className="text-white/60 text-xs">
+                            📍 {country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    </button>
+                  </div>
                 ))}
               </div>
 

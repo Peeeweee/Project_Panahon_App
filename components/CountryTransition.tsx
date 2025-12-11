@@ -15,47 +15,57 @@ const CountryTransition: React.FC<CountryTransitionProps> = ({ data, isExiting }
 
   // Function to calculate position based on current window size
   const calculateStyle = useCallback((isResizeEvent = false) => {
-    // 1. Viewport Center
-    const viewportCenterX = window.innerWidth / 2;
-    const viewportCenterY = window.innerHeight / 2;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const viewportCenterX = viewportWidth / 2;
+    const viewportCenterY = viewportHeight / 2;
 
-    // 2. Element Center (Fixed based on initial click)
+    // Country's initial center position
     const countryCenterX = data.initialRect.left + data.initialRect.width / 2;
     const countryCenterY = data.initialRect.top + data.initialRect.height / 2;
 
-    // 3. Base Translation
-    let translateX = viewportCenterX - countryCenterX;
-    let translateY = viewportCenterY - countryCenterY;
+    // Calculate target position (LEFT PANEL of the weather card)
+    let targetX: number;
+    let targetY: number;
+    let leftPanelWidth: number;
 
-    // 4. Offset Logic (Must match WeatherCard layout)
-    // Desktop (md: 768px+): Card is split left/right. Left panel width is ~50% of card.
-    // Card max-width is 3xl (~48rem / 768px). Half is 384px. Center of left panel is -192px from center.
-    if (window.innerWidth >= 768) {
-       translateX -= 192; 
-       translateY -= 60; // Visual tweak to move it slightly up in the left panel
+    if (viewportWidth >= 768) {
+       // Desktop: Card is max-w-3xl (768px max) and centered
+       // But actual card width depends on viewport
+       const actualCardWidth = Math.min(768, viewportWidth - 32); // Account for mx-4
+       leftPanelWidth = actualCardWidth / 2; // Left panel is 50% of card
+
+       // Card's left edge position
+       const cardLeftEdge = viewportCenterX - (actualCardWidth / 2);
+
+       // Target: Center of left panel
+       targetX = cardLeftEdge + (leftPanelWidth / 2);
+       targetY = viewportCenterY;
     } else {
-       // Mobile: Card is stacked. Left panel is on top with fixed h-64 (256px).
-       // We want to center in that top 256px area.
-       // The card is roughly centered in viewport.
-       // Top panel center is relative to card center.
-       // If card height is ~600px, top is -300px. Center of top section is -300 + 128 = -172px approx.
-       translateY -= 140; 
+       // Mobile: Stacked layout, left panel is on top
+       leftPanelWidth = Math.min(viewportWidth - 32, 768);
+       targetX = viewportCenterX;
+       targetY = viewportCenterY - 80; // Move up to top panel
     }
 
-    // 5. Scale Logic
+    const translateX = targetX - countryCenterX;
+    const translateY = targetY - countryCenterY;
+
+    // Scale Logic - Adaptive based on country size and left panel size
     const maxDimension = Math.max(data.initialRect.width, data.initialRect.height);
-    // Dynamic target size based on viewport
-    const targetDimension = Math.min(window.innerWidth, window.innerHeight) * 0.35; 
+    // Target should fit comfortably in the left panel (use 70% of panel width)
+    const targetDimension = leftPanelWidth * 0.7;
     let scale = targetDimension / maxDimension;
-    scale = Math.max(1.8, Math.min(scale, 12));
+
+    // Clamp scale to reasonable bounds
+    scale = Math.max(1.8, Math.min(scale, 8));
 
     return {
         transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-        opacity: 1,
-        // On resize, we want instant updates (no lag). On entry, we want smooth animation.
-        transition: isResizeEvent 
-            ? 'none' 
-            : 'transform 1000ms cubic-bezier(0.4, 0, 0.2, 1), opacity 500ms ease-in'
+        opacity: 0.8,
+        transition: isResizeEvent
+            ? 'none'
+            : 'transform 1000ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 800ms ease-in-out'
     };
   }, [data.initialRect]);
 
