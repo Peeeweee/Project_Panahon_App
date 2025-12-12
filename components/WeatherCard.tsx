@@ -1,8 +1,10 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { WeatherResult } from '../types';
 import { TemperatureUnit, convertTemperature } from '../utils/temperatureUtils';
 import WeatherBackground from './WeatherBackground';
+import HybridCityView from './HybridCityView';
+import { getCitiesForCountry, hasRegionalData, City } from '../data/cities';
 
 interface WeatherCardProps {
   data: WeatherResult;
@@ -15,9 +17,65 @@ interface WeatherCardProps {
   initialPosition?: { x: number; y: number; width: number; height: number };
   countryPath?: string; // SVG path data for the country
   countryRect?: DOMRect; // Original position of the country on map
+  onCityClick?: (city: City) => void; // Callback when a city is clicked
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare, initialPosition, countryPath, countryRect }) => {
+const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare, initialPosition, countryPath, countryRect, onCityClick }) => {
+
+  // State to control whether to show regional map or static country
+  const [showRegionalMap, setShowRegionalMap] = useState(false);
+
+  // Animation state for smooth city transitions
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Track navigation level (country or city)
+  const [viewLevel, setViewLevel] = useState<'country' | 'city'>('country');
+
+  // Handler for city clicks with animation
+  const handleCityClickWithAnimation = (city: City) => {
+    if (!onCityClick) return;
+
+    // Trigger fade-out animation
+    setIsTransitioning(true);
+    setViewLevel('city');
+
+    // Wait for animation, then call parent handler
+    setTimeout(() => {
+      onCityClick(city);
+      setIsTransitioning(false);
+    }, 300);
+  };
+
+  // Handler to go back from city to country view
+  const handleBackToCountry = () => {
+    setShowRegionalMap(false);
+    setViewLevel('country');
+  };
+
+  // Keyboard navigation - Escape to go back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (showRegionalMap || viewLevel === 'city')) {
+        e.preventDefault();
+        handleBackToCountry();
+      }
+    };
+
+    if (showRegionalMap || viewLevel === 'city') {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showRegionalMap, viewLevel]);
+
+  // Check if this country has regional city data
+  const countryName = useMemo(() => {
+    // Extract country name from location (e.g., "Tokyo, Japan" -> "Japan")
+    const parts = data.location.split(',');
+    return parts.length > 1 ? parts[parts.length - 1].trim() : data.location;
+  }, [data.location]);
+
+  const hasRegions = useMemo(() => hasRegionalData(countryName), [countryName]);
+  const cities = useMemo(() => getCitiesForCountry(countryName), [countryName]);
 
   // Calculate transform from country position to card position
   const initialTransform = useMemo(() => {
@@ -195,6 +253,39 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
         */}
         <div className="absolute inset-0 rounded-[2rem] border border-white/10 shadow-2xl pointer-events-none"></div>
 
+        {/* Breadcrumb Navigation & Back Button (only show when NOT using HybridCityView) */}
+        {(showRegionalMap || viewLevel === 'city') && !(showRegionalMap && hasRegions && onCityClick && countryPath && countryRect) && (
+          <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
+            {/* Back Button */}
+            <button
+              onClick={handleBackToCountry}
+              className="group p-2 bg-black/40 hover:bg-white/20 rounded-full transition-all backdrop-blur-md border border-white/20"
+              title="Back to country"
+            >
+              <svg className="w-4 h-4 text-white group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+
+            {/* Breadcrumb Trail */}
+            <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 text-white text-xs font-medium">
+              <span className="text-white/50">World</span>
+              <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span className={viewLevel === 'country' ? 'text-white' : 'text-white/70'}>{countryName}</span>
+              {viewLevel === 'city' && (
+                <>
+                  <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-white">{data.location.split(',')[0].trim()}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 z-50 flex gap-2">
           {/* Share Button */}
@@ -229,8 +320,11 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
 
           {/* Close Button */}
           <button
+            type="button"
             onClick={onClose}
             className="p-2 bg-black/20 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white backdrop-blur-md"
+            aria-label="Close weather card"
+            title="Close"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -242,44 +336,79 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
             - Mobile: h-64 (Fixed height to reserve space for animation)
             - Desktop: h-auto (Full height)
         */}
-        <div className="w-full md:w-1/2 h-64 md:h-auto relative flex flex-col items-center justify-center p-6 overflow-hidden rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none shrink-0">
+        <div
+          className={`w-full md:w-1/2 h-64 md:h-auto relative flex flex-col items-center justify-center p-6 overflow-hidden rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none shrink-0 group/leftpanel ${hasRegions && !showRegionalMap ? 'cursor-pointer' : ''}`}
+          onClick={() => {
+            if (hasRegions && !showRegionalMap) {
+              setShowRegionalMap(true);
+            }
+          }}
+        >
 
           {/* Weather Background Animation in Left Panel */}
           <div className="absolute inset-0 rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none overflow-hidden">
             <WeatherBackground weatherType={weatherType} isFullScreen={false} />
           </div>
 
-          {/* Country SVG Animation - Embedded directly in left panel */}
-          {countryPath && countryRect && (
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{
-                opacity: isExiting ? 0 : 0.85,
-                transition: 'opacity 800ms ease-out'
-              }}
-            >
-              <defs>
-                <linearGradient id="countryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(167, 139, 250, 0.8)" />
-                  <stop offset="100%" stopColor="rgba(76, 29, 149, 1)" />
-                </linearGradient>
-                <filter id="countryShadow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#000" floodOpacity="0.4" />
-                </filter>
-              </defs>
-              <path
-                d={countryPath}
-                fill="url(#countryGradient)"
-                stroke="rgba(255, 255, 255, 0.5)"
-                strokeWidth={0.8}
-                filter="url(#countryShadow)"
-                style={{
-                  transformOrigin: `${countryRect.left + countryRect.width / 2}px ${countryRect.top + countryRect.height / 2}px`,
-                  vectorEffect: 'non-scaling-stroke',
-                  animation: 'countrySlideIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
-                }}
-              />
-            </svg>
+          {/* Show HybridCityView if enabled and country has cities */}
+          {showRegionalMap && hasRegions && onCityClick && countryPath && countryRect ? (
+            <HybridCityView
+              countryName={countryName}
+              countryPath={countryPath}
+              countryRect={countryRect}
+              cities={cities}
+              onCityClick={handleCityClickWithAnimation}
+              weatherType={weatherType}
+              onBack={handleBackToCountry}
+              cityName={viewLevel === 'city' ? data.location.split(',')[0].trim() : undefined}
+            />
+          ) : (
+            <>
+              {/* Country SVG Animation - Embedded directly in left panel */}
+              {countryPath && countryRect && (
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  style={{
+                    opacity: isExiting ? 0 : 0.85,
+                    transition: 'opacity 800ms ease-out'
+                  }}
+                >
+                  <defs>
+                    <linearGradient id="countryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(167, 139, 250, 0.8)" />
+                      <stop offset="100%" stopColor="rgba(76, 29, 149, 1)" />
+                    </linearGradient>
+                    <filter id="countryShadow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#000" floodOpacity="0.4" />
+                    </filter>
+                  </defs>
+                  <path
+                    d={countryPath}
+                    fill="url(#countryGradient)"
+                    stroke="rgba(255, 255, 255, 0.5)"
+                    strokeWidth={0.8}
+                    filter="url(#countryShadow)"
+                    style={{
+                      transformOrigin: `${countryRect.left + countryRect.width / 2}px ${countryRect.top + countryRect.height / 2}px`,
+                      vectorEffect: 'non-scaling-stroke',
+                      animation: 'countrySlideIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                    }}
+                  />
+                </svg>
+              )}
+
+              {/* Click hint for countries with regional data */}
+              {hasRegions && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 opacity-0 group-hover/leftpanel:opacity-100 transition-opacity duration-300">
+                  <div className="bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-white/30 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    </svg>
+                    Explore Cities
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Country ISO Code at bottom */}
@@ -291,7 +420,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
         </div>
 
         {/* RIGHT PANEL: The "Glass" Card with Content */}
-        <div className="w-full md:w-1/2 bg-slate-900/50 backdrop-blur-2xl p-6 md:p-8 text-white flex flex-col justify-center relative rounded-b-[2rem] md:rounded-r-[2rem] md:rounded-bl-none border-t md:border-t-0 md:border-l border-white/5">
+        <div className={`w-full md:w-1/2 bg-slate-900/50 backdrop-blur-2xl p-6 md:p-8 text-white flex flex-col justify-center relative rounded-b-[2rem] md:rounded-r-[2rem] md:rounded-bl-none border-t md:border-t-0 md:border-l border-white/5 transition-opacity duration-300 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
 
           {/* Glow behind text */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-purple-500/20 rounded-full blur-[50px] pointer-events-none"></div>

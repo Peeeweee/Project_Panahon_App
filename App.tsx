@@ -12,6 +12,7 @@ import { getWeather, getWeatherByCoordinates } from './services/weatherService';
 import { WeatherResult, TransitionData, FavoriteLocation } from './types';
 import { TemperatureUnit } from './utils/temperatureUtils';
 import { Country } from './data/countries';
+import { City } from './data/cities';
 
 const App: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
@@ -279,6 +280,24 @@ const App: React.FC = () => {
 
   const isFavorite = weatherData ? favorites.some(fav => fav.name === weatherData.location) : false;
 
+  // Handle City Click from Regional Map
+  const handleCityClick = async (city: City) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch weather for the specific city using coordinates
+      const data = await getWeatherByCoordinates(city.lat, city.lon);
+      setWeatherData(data);
+      // Keep the transition data so the country outline remains visible
+      // This allows smooth transition from country to city weather
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch city weather');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Determine weather type for background effects
   const weatherType = useMemo(() => {
     if (!weatherData) return null;
@@ -457,6 +476,7 @@ const App: React.FC = () => {
                 } : undefined}
                 countryPath={transitionData?.path}
                 countryRect={transitionData?.initialRect}
+                onCityClick={handleCityClick}
              />
           </div>
         )}
