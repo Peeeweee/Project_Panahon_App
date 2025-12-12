@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import WorldMap from './components/WorldMap';
 import WeatherCard from './components/WeatherCard';
@@ -7,6 +7,7 @@ import CountryTransition from './components/CountryTransition';
 import Favorites from './components/Favorites';
 import Dashboard from './components/Dashboard';
 import CountryListView from './components/CountryListView';
+import WeatherBackground from './components/WeatherBackground';
 import { getWeather, getWeatherByCoordinates } from './services/weatherService';
 import { WeatherResult, TransitionData, FavoriteLocation } from './types';
 import { TemperatureUnit } from './utils/temperatureUtils';
@@ -278,9 +279,27 @@ const App: React.FC = () => {
 
   const isFavorite = weatherData ? favorites.some(fav => fav.name === weatherData.location) : false;
 
+  // Determine weather type for background effects
+  const weatherType = useMemo(() => {
+    if (!weatherData) return null;
+    const c = weatherData.condition.toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return 'rain';
+    if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist')) return 'cloudy';
+    if (c.includes('snow') || c.includes('ice') || c.includes('blizzard')) return 'snow';
+    if (c.includes('storm') || c.includes('thunder')) return 'storm';
+    return 'clear';
+  }, [weatherData]);
+
   return (
     <div className="relative w-screen h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2e1065] to-[#4c1d95] overflow-hidden font-sans">
-      
+
+      {/* Full-Screen Weather Background Animation */}
+      {weatherType && weatherData && !isExiting && (
+        <div className="absolute inset-0 z-5 transition-opacity duration-1000">
+          <WeatherBackground weatherType={weatherType} isFullScreen={true} />
+        </div>
+      )}
+
       {/* Background Map Layer */}
       {/* Dim the map when a country is selected to emphasize the transition */}
       <div className={`absolute inset-0 transition-all duration-1000 ${hasStarted ? 'opacity-100' : 'opacity-40'} ${transitionData && !isExiting ? 'brightness-50 blur-[2px] scale-105' : 'scale-100'}`}>

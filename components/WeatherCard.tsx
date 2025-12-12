@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { WeatherResult } from '../types';
 import { TemperatureUnit, convertTemperature } from '../utils/temperatureUtils';
+import WeatherBackground from './WeatherBackground';
 
 interface WeatherCardProps {
   data: WeatherResult;
@@ -64,7 +65,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
   // Determine Icon based on condition keywords with ANIMATIONS
   const WeatherIcon = useMemo(() => {
     const c = data.condition.toLowerCase();
-    
+
     // RAIN / DRIZZLE
     if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) {
       return (
@@ -76,8 +77,8 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           <line x1="12" y1="17" x2="12" y2="19" strokeLinecap="round" strokeWidth={1.5} style={{ animation: 'rain-drop 1s infinite linear', animationDelay: '0.4s' }} />
           <line x1="16" y1="17" x2="16" y2="19" strokeLinecap="round" strokeWidth={1.5} style={{ animation: 'rain-drop 1s infinite linear', animationDelay: '0.8s' }} />
         </svg>
-      ); 
-    } 
+      );
+    }
     // CLOUDY / OVERCAST
     else if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('mist')) {
       return (
@@ -85,7 +86,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
         </svg>
       );
-    } 
+    }
     // SNOW / ICE
     else if (c.includes('snow') || c.includes('ice') || c.includes('blizzard')) {
       return (
@@ -97,7 +98,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           <circle cx="16" cy="18" r="1" fill="currentColor" style={{ animation: 'snow-fall 3s infinite linear', animationDelay: '2s', transformOrigin: 'center' }} />
         </svg>
       );
-    } 
+    }
     // THUNDER / STORM
     else if (c.includes('storm') || c.includes('thunder')) {
       return (
@@ -106,7 +107,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 11l-4 6h6l-2 6" className="animate-pulse" />
         </svg>
       );
-    } 
+    }
     // CLEAR / SUNNY (Default)
     else {
       return (
@@ -187,9 +188,9 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
             animation: initialPosition ? 'slideToCard 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none'
           }}
       >
-        {/* 
+        {/*
             Main Container Border/Shadow Layer
-            This provides the shape but has NO background fill or blur, 
+            This provides the shape but has NO background fill or blur,
             allowing the SVG in Z-30 to be seen clearly through the left side.
         */}
         <div className="absolute inset-0 rounded-[2rem] border border-white/10 shadow-2xl pointer-events-none"></div>
@@ -243,6 +244,11 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
         */}
         <div className="w-full md:w-1/2 h-64 md:h-auto relative flex flex-col items-center justify-center p-6 overflow-hidden rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none shrink-0">
 
+          {/* Weather Background Animation in Left Panel */}
+          <div className="absolute inset-0 rounded-t-[2rem] md:rounded-l-[2rem] md:rounded-tr-none overflow-hidden">
+            <WeatherBackground weatherType={weatherType} isFullScreen={false} />
+          </div>
+
           {/* Country SVG Animation - Embedded directly in left panel */}
           {countryPath && countryRect && (
             <svg
@@ -286,7 +292,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
 
         {/* RIGHT PANEL: The "Glass" Card with Content */}
         <div className="w-full md:w-1/2 bg-slate-900/50 backdrop-blur-2xl p-6 md:p-8 text-white flex flex-col justify-center relative rounded-b-[2rem] md:rounded-r-[2rem] md:rounded-bl-none border-t md:border-t-0 md:border-l border-white/5">
-          
+
           {/* Glow behind text */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-purple-500/20 rounded-full blur-[50px] pointer-events-none"></div>
 
@@ -295,7 +301,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
               <h2 className="text-2xl md:text-3xl font-bold mb-2 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70 leading-tight">
                 {data.location}
               </h2>
-              
+
               {/* Condition Pill */}
               <div className="flex items-center gap-2 mb-4 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm shadow-inner shadow-white/5">
                   {WeatherIcon}
@@ -346,10 +352,10 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="text-[8px] text-white/30 uppercase tracking-widest font-semibold">Sources</span>
                     {data.sources.map((source, idx) => (
-                        <a 
-                        key={idx} 
-                        href={source.uri} 
-                        target="_blank" 
+                        <a
+                        key={idx}
+                        href={source.uri}
+                        target="_blank"
                         rel="noreferrer"
                         className="text-[9px] text-purple-300 hover:text-white transition-colors truncate max-w-[100px] flex items-center gap-1 bg-white/5 px-1.5 py-0.5 rounded hover:bg-white/10"
                         >
