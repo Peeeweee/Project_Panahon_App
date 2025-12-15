@@ -316,7 +316,7 @@ const HybridCityView: React.FC<HybridCityViewProps> = ({
               vectorEffect="non-scaling-stroke"
             />
 
-            {/* City markers */}
+            {/* City markers - much smaller and precise */}
             {filteredCities.map((city) => {
               const { x, y } = projectCityToSVG(city);
               const isHovered = hoveredCity === city.name;
@@ -325,82 +325,94 @@ const HybridCityView: React.FC<HybridCityViewProps> = ({
 
               return (
                 <g key={city.name}>
-                  {/* Invisible larger hit area for easier clicking */}
+                  {/* Small precise hit area - reduced from 8 to 3.5 */}
                   <circle
                     cx={x}
                     cy={y}
-                    r={8}
+                    r={3.5}
                     fill="transparent"
                     className="city-marker-group"
                     onMouseEnter={() => setHoveredCity(city.name)}
                     onMouseLeave={() => setHoveredCity(null)}
                     onClick={() => handleCityClickInternal(city)}
-                    style={{ pointerEvents: 'all' }}
+                    style={{ pointerEvents: 'all', cursor: 'pointer' }}
                   />
 
-                  {/* Ripple effect on hover/select - static, no animation */}
+                  {/* Glow effect on hover/select - smaller */}
                   {(isHovered || isSelected) && (
                     <circle
                       cx={x}
                       cy={y}
-                      r={isCapital ? 5 : 4}
+                      r={2.5}
                       fill={markerColor}
-                      opacity={0.2}
+                      opacity={0.3}
                       style={{ pointerEvents: 'none' }}
                     />
                   )}
 
-                  {/* City marker dot - fixed size, no scaling */}
+                  {/* City marker dot - MUCH smaller, precise positioning */}
                   <circle
                     cx={x}
                     cy={y}
-                    r={isCapital ? 2.5 : 1.8}
+                    r={isCapital ? 1.2 : 0.9}
                     fill={isSelected ? 'rgba(167, 139, 250, 1)' : isHovered ? 'rgba(255, 255, 255, 1)' : markerColor}
                     stroke="rgba(255, 255, 255, 0.9)"
-                    strokeWidth={isSelected || isHovered ? 0.8 : 0.5}
-                    filter="url(#markerGlowHybrid)"
+                    strokeWidth={isSelected || isHovered ? 0.4 : 0.3}
+                    filter={isHovered || isSelected ? "url(#markerGlowHybrid)" : undefined}
                     vectorEffect="non-scaling-stroke"
                     style={{ pointerEvents: 'none' }}
                   />
 
-                  {/* Capital star indicator */}
-                  {isCapital && (
+                  {/* Capital star indicator - smaller */}
+                  {isCapital && !isHovered && (
                     <circle
                       cx={x}
                       cy={y}
-                      r={4}
+                      r={2}
                       fill="none"
-                      stroke="rgba(251, 191, 36, 0.6)"
-                      strokeWidth={0.5}
+                      stroke="rgba(251, 191, 36, 0.7)"
+                      strokeWidth={0.3}
                       vectorEffect="non-scaling-stroke"
                       style={{ pointerEvents: 'none' }}
                     />
                   )}
 
-                  {/* Hover tooltip */}
+                  {/* Hover tooltip - positioned to avoid overlap */}
                   {isHovered && (
                     <g style={{ pointerEvents: 'none' }}>
                       <rect
-                        x={x + 4}
-                        y={y - 12}
-                        width={Math.max(city.name.length * 4, 40)}
-                        height={14}
+                        x={x + 5}
+                        y={y - 10}
+                        width={Math.max(city.name.length * 3.5, 35)}
+                        height={12}
                         rx={2}
                         fill="rgba(15, 10, 40, 0.98)"
                         stroke="rgba(167, 139, 250, 0.8)"
-                        strokeWidth={0.4}
+                        strokeWidth={0.3}
                         vectorEffect="non-scaling-stroke"
                       />
                       <text
-                        x={x + 4 + Math.max(city.name.length * 4, 40) / 2}
-                        y={y - 4}
+                        x={x + 5 + Math.max(city.name.length * 3.5, 35) / 2}
+                        y={y - 3}
                         fill="white"
-                        fontSize="6"
+                        fontSize="5"
                         fontWeight="600"
                         textAnchor="middle"
                       >
                         {city.name}
                       </text>
+                      {city.isCapital && (
+                        <text
+                          x={x + 5 + Math.max(city.name.length * 3.5, 35) / 2}
+                          y={y - 8}
+                          fill="rgba(251, 191, 36, 1)"
+                          fontSize="4"
+                          fontWeight="700"
+                          textAnchor="middle"
+                        >
+                          ⭐ CAPITAL
+                        </text>
+                      )}
                     </g>
                   )}
                 </g>
