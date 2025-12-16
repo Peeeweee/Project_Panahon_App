@@ -9,8 +9,11 @@
     "preview": "vite preview",
     "server": "cd server && npm start",
     "server:dev": "cd server && npm run dev",
-    "start": "concurrently \"npm run server:dev\" \"npm run dev\"",
-    "install:all": "npm install && cd server && npm install"
+    "setup": "node setup.js",
+    "postinstall": "node setup.js --skip-backend-install",
+    "kill-ports": "node kill-ports.js",
+    "start": "node kill-ports.js && node setup.js && concurrently \"npm run server:dev\" \"npm run dev\"",
+    "install:all": "npm install && cd server && npm install && node setup.js --skip-backend-install"
   },
   "dependencies": {
     "@google/genai": "^1.31.0",

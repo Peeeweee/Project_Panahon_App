@@ -1,18 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
-import WorldMap from './components/WorldMap';
-import WeatherCard from './components/WeatherCard';
-import CountryTransition from './components/CountryTransition';
-import Favorites from './components/Favorites';
+import WorldMapView from './components/WorldMapView';
+import ListViewPage from './components/ListViewPage';
 import Dashboard from './components/Dashboard';
-import CountryListView from './components/CountryListView';
 import WeatherBackground from './components/WeatherBackground';
 import { getWeather, getWeatherByCoordinates } from './services/weatherService';
-import { WeatherResult, TransitionData, FavoriteLocation } from './types';
+import { WeatherResult } from './types';
 import { TemperatureUnit } from './utils/temperatureUtils';
-import { Country } from './data/countries';
-import { City } from './data/cities';
 
 const App: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
@@ -22,16 +17,9 @@ const App: React.FC = () => {
   const [weatherData, setWeatherData] = useState<WeatherResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Animation State
-  const [transitionData, setTransitionData] = useState<TransitionData | null>(null);
-  const [isExiting, setIsExiting] = useState(false);
-
   // Dashboard State
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number; name: string } | undefined>(undefined);
-
-  // Favorites State
-  const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
 
   // Temperature Unit State
   const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('C');
@@ -39,29 +27,13 @@ const App: React.FC = () => {
   // View Mode State (Map or List)
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
-  // Load favorites and temperature unit from localStorage on mount
+  // Load temperature unit from localStorage on mount
   useEffect(() => {
-    const savedFavorites = localStorage.getItem('panahon_favorites');
-    if (savedFavorites) {
-      try {
-        setFavorites(JSON.parse(savedFavorites));
-      } catch (err) {
-        console.error('Error loading favorites:', err);
-      }
-    }
-
     const savedUnit = localStorage.getItem('panahon_temperature_unit');
     if (savedUnit === 'C' || savedUnit === 'F') {
       setTemperatureUnit(savedUnit);
     }
   }, []);
-
-  // Save favorites to localStorage whenever they change
-  useEffect(() => {
-    if (favorites.length > 0) {
-      localStorage.setItem('panahon_favorites', JSON.stringify(favorites));
-    }
-  }, [favorites]);
 
   // Save temperature unit to localStorage whenever it changes
   useEffect(() => {
@@ -72,20 +44,13 @@ const App: React.FC = () => {
     setHasStarted(true);
   };
 
-  const resetState = () => {
-    setWeatherData(null);
-    setTransitionData(null);
-    setError(null);
-    setIsExiting(false);
-  };
-
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
-    resetState();
-    // Close search bar on mobile or desktop after search to show map/card better
+    setError(null);
+    setWeatherData(null);
     setIsSearchOpen(false);
 
     try {
@@ -96,52 +61,6 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRegionClick = (regionName: string, pathData: string, rect: DOMRect) => {
-    // Only allow clicking if we have started
-    if (!hasStarted) return;
-    
-    // Start Transition Animation
-    setTransitionData({ path: pathData, initialRect: rect });
-
-    setQuery(regionName);
-    setLoading(true);
-    setError(null);
-    setWeatherData(null);
-    setIsExiting(false);
-
-    getWeather(regionName)
-      .then(data => {
-        // Show data immediately for faster UX
-        setWeatherData(data);
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  };
-
-  const handleCloseCard = () => {
-    // Trigger exit animation
-    setIsExiting(true);
-
-    // Wait for animation to complete before removing data from DOM
-    setTimeout(() => {
-        setWeatherData(null);
-        setTransitionData(null);
-        setQuery(''); // Clear the query to truly reset
-        setError(null);
-        setIsExiting(false);
-    }, 1000); // Match animation duration in CountryTransition
-  };
-
-  const handleDismissError = () => {
-    // Reset everything immediately
-    setError(null);
-    setWeatherData(null);
-    setTransitionData(null);
-    setQuery('');
-    setLoading(false);
-    setIsExiting(false);
   };
 
   // Current Location Handler
@@ -160,7 +79,6 @@ const App: React.FC = () => {
         try {
           const data = await getWeatherByCoordinates(latitude, longitude);
           setWeatherData(data);
-          // Save user location for dashboard
           setUserLocation({ lat: latitude, lon: longitude, name: data.location });
         } catch (err: any) {
           setError(err.message || 'Failed to fetch weather for your location');
@@ -191,113 +109,6 @@ const App: React.FC = () => {
     setViewMode((prevMode) => prevMode === 'map' ? 'list' : 'map');
   };
 
-  // Country Selection Handler (from List View)
-  const handleSelectCountry = async (country: Country) => {
-    setLoading(true);
-    setError(null);
-    setWeatherData(null);
-    setIsExiting(false);
-
-    try {
-      const data = await getWeatherByCoordinates(country.coordinates.lat, country.coordinates.lon);
-      setWeatherData(data);
-      setUserLocation({ lat: country.coordinates.lat, lon: country.coordinates.lon, name: data.location });
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch weather data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Share Weather Handler
-  const handleShareWeather = async () => {
-    if (!weatherData) return;
-
-    const shareText = `🌤️ Weather in ${weatherData.location}\n${weatherData.temperature} - ${weatherData.condition}\n💧 Humidity: ${weatherData.humidity}\n💨 Wind: ${weatherData.wind}\n\nVia Panahon Weather App`;
-    const shareUrl = window.location.href;
-
-    // Check if Web Share API is available
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Weather in ${weatherData.location}`,
-          text: shareText,
-          url: shareUrl,
-        });
-      } catch (err) {
-        // User cancelled or error occurred
-        console.log('Share cancelled or failed:', err);
-      }
-    } else {
-      // Fallback: Copy to clipboard
-      try {
-        await navigator.clipboard.writeText(shareText);
-        // Show a temporary success message
-        setError('Weather info copied to clipboard! ✓');
-        setTimeout(() => setError(null), 2000);
-      } catch (err) {
-        console.error('Failed to copy to clipboard:', err);
-        setError('Unable to share. Please try again.');
-      }
-    }
-  };
-
-  // Favorites Handlers
-  const addToFavorites = () => {
-    if (!weatherData) return;
-
-    const newFavorite: FavoriteLocation = {
-      name: weatherData.location,
-      isoCode: weatherData.isoCode,
-      timestamp: Date.now(),
-    };
-
-    // Check if already in favorites
-    const exists = favorites.some(fav => fav.name === newFavorite.name);
-    if (!exists) {
-      setFavorites([...favorites, newFavorite]);
-    }
-  };
-
-  const removeFromFavorites = (name: string) => {
-    setFavorites(favorites.filter(fav => fav.name !== name));
-  };
-
-  const handleSelectFavorite = async (name: string) => {
-    setLoading(true);
-    setError(null);
-    setQuery(name);
-
-    try {
-      const data = await getWeather(name);
-      setWeatherData(data);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isFavorite = weatherData ? favorites.some(fav => fav.name === weatherData.location) : false;
-
-  // Handle City Click from Regional Map
-  const handleCityClick = async (city: City) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Fetch weather for the specific city using coordinates
-      const data = await getWeatherByCoordinates(city.lat, city.lon);
-      setWeatherData(data);
-      // Keep the transition data so the country outline remains visible
-      // This allows smooth transition from country to city weather
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch city weather');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Determine weather type for background effects
   const weatherType = useMemo(() => {
     if (!weatherData) return null;
@@ -313,23 +124,15 @@ const App: React.FC = () => {
     <div className="relative w-screen h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2e1065] to-[#4c1d95] overflow-hidden font-sans">
 
       {/* Full-Screen Weather Background Animation */}
-      {weatherType && weatherData && !isExiting && (
+      {weatherType && weatherData && (
         <div className="absolute inset-0 z-5 transition-opacity duration-1000">
           <WeatherBackground weatherType={weatherType} isFullScreen={true} />
         </div>
       )}
 
-      {/* Background Map Layer */}
-      {/* Dim the map when a country is selected to emphasize the transition */}
-      <div className={`absolute inset-0 transition-all duration-1000 ${hasStarted ? 'opacity-100' : 'opacity-40'} ${transitionData && !isExiting ? 'brightness-50 blur-[2px] scale-105' : 'scale-100'}`}>
-         <WorldMap
-           onRegionClick={!weatherData && !loading && !transitionData ? handleRegionClick : undefined}
-         />
-      </div>
-
       {/* Gradient Overlay */}
       <div className={`absolute inset-0 bg-gradient-to-t from-[#1a0b2e] via-transparent to-[#1a0b2e]/80 pointer-events-none z-10 transition-opacity duration-1000 ${hasStarted ? 'opacity-0' : 'opacity-100'}`}></div>
-      
+
       {/* Radial overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(26,11,46,0.5)_100%)] pointer-events-none z-10"></div>
 
@@ -427,10 +230,17 @@ const App: React.FC = () => {
         onToggleView={handleToggleView}
       />
 
-      {/* Country List View */}
-      <CountryListView
-        isVisible={hasStarted && viewMode === 'list' && !weatherData && !loading}
-        onSelectCountry={handleSelectCountry}
+      {/* World Map View */}
+      <WorldMapView
+        isVisible={hasStarted && viewMode === 'map'}
+        temperatureUnit={temperatureUnit}
+        isSearchOpen={isSearchOpen}
+      />
+
+      {/* List View Page */}
+      <ListViewPage
+        isVisible={hasStarted && viewMode === 'list'}
+        temperatureUnit={temperatureUnit}
       />
 
       {/* Dashboard Modal */}
@@ -439,64 +249,6 @@ const App: React.FC = () => {
         onClose={() => setIsDashboardOpen(false)}
         userLocation={userLocation}
         temperatureUnit={temperatureUnit}
-      />
-
-      {/* Transition Overlay - DISABLED: Now handled inside WeatherCard */}
-      {/* {transitionData && <CountryTransition data={transitionData} isExiting={isExiting} />} */}
-
-      {/* Main Container for Cards */}
-      <main className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-center p-4">
-        
-        {/* Loading Indicator */}
-        {loading && !weatherData && (
-          <div className="bg-black/40 backdrop-blur-md p-4 rounded-full animate-pulse transition-opacity duration-500">
-            <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        )}
-
-        {/* Results Card */}
-        {weatherData && (
-          <div className="pointer-events-auto perspective-1000 w-full flex justify-center">
-             <WeatherCard
-                data={weatherData}
-                onClose={handleCloseCard}
-                isExiting={isExiting}
-                onToggleFavorite={addToFavorites}
-                isFavorite={isFavorite}
-                temperatureUnit={temperatureUnit}
-                onShare={handleShareWeather}
-                initialPosition={transitionData?.initialRect ? {
-                  x: transitionData.initialRect.x + transitionData.initialRect.width / 2,
-                  y: transitionData.initialRect.y + transitionData.initialRect.height / 2,
-                  width: transitionData.initialRect.width,
-                  height: transitionData.initialRect.height
-                } : undefined}
-                countryPath={transitionData?.path}
-                countryRect={transitionData?.initialRect}
-                onCityClick={handleCityClick}
-             />
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="mt-6 pointer-events-auto bg-red-500/20 backdrop-blur-md border border-red-500/40 text-red-200 px-6 py-4 rounded-xl max-w-md text-center animate-in fade-in duration-300">
-            <p>{error}</p>
-            <button onClick={handleDismissError} className="text-sm underline mt-2 hover:text-white">Dismiss</button>
-          </div>
-        )}
-
-      </main>
-
-      {/* Favorites Bar */}
-      <Favorites
-        favorites={favorites}
-        onSelectFavorite={handleSelectFavorite}
-        onRemoveFavorite={removeFromFavorites}
-        isVisible={hasStarted && viewMode === 'map' && !weatherData && !loading}
       />
     </div>
   );

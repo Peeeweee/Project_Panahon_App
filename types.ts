@@ -6,6 +6,10 @@ export interface WeatherResult {
   description: string;
   humidity: string;
   wind: string;
+  coordinates?: {
+    lat: number;
+    lon: number;
+  };
   sources: Array<{ title: string; uri: string }>;
 }
 

@@ -202,6 +202,10 @@ export async function getWeatherByCoordinates(latitude, longitude, locationName 
     humidity: `${humidity}%`,
     wind: `${Math.round(windSpeed)} km/h`,
     description: generateDescription(condition, temp, humidity, windSpeed),
+    coordinates: {
+      lat: latitude,
+      lon: longitude
+    },
     sources: [
       {
         title: 'Open-Meteo Weather API',

@@ -1,10 +1,56 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { WORLD_COUNTRIES, Country, searchCountries } from '../data/countries';
+import { getWeatherByCoordinates } from '../services/weatherService';
 
 interface CountryListViewProps {
   onSelectCountry: (country: Country) => void;
   isVisible: boolean;
 }
+
+interface CountryWeatherPreview {
+  temperature: string;
+  condition: string;
+  icon: string;
+}
+
+// Get weather icon based on condition
+const getWeatherIcon = (condition: string): string => {
+  const c = condition.toLowerCase();
+  if (c.includes('clear') || c.includes('sunny')) return '☀️';
+  if (c.includes('cloud') || c.includes('overcast')) return '☁️';
+  if (c.includes('partly')) return '⛅';
+  if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return '🌧️';
+  if (c.includes('snow') || c.includes('blizzard')) return '❄️';
+  if (c.includes('storm') || c.includes('thunder')) return '⛈️';
+  if (c.includes('fog') || c.includes('mist')) return '🌫️';
+  if (c.includes('wind')) return '💨';
+  return '🌤️';
+};
+
+// Get time-based greeting and icon
+const getTimeBasedInfo = (coordinates: { lat: number; lon: number }): { icon: string; label: string } => {
+  const now = new Date();
+  const hour = now.getUTCHours();
+
+  // Approximate timezone offset based on longitude
+  const timezoneOffset = Math.round(coordinates.lon / 15);
+  const localHour = (hour + timezoneOffset + 24) % 24;
+
+  if (localHour >= 5 && localHour < 12) return { icon: '🌅', label: 'Morning' };
+  if (localHour >= 12 && localHour < 17) return { icon: '☀️', label: 'Afternoon' };
+  if (localHour >= 17 && localHour < 20) return { icon: '🌆', label: 'Evening' };
+  return { icon: '🌙', label: 'Night' };
+};
+
+// Get climate zone based on latitude
+const getClimateZone = (lat: number): { emoji: string; name: string } => {
+  const absLat = Math.abs(lat);
+  if (absLat > 66.5) return { emoji: '🧊', name: 'Polar' };
+  if (absLat > 60) return { emoji: '❄️', name: 'Subarctic' };
+  if (absLat > 40) return { emoji: '🍂', name: 'Temperate' };
+  if (absLat > 23.5) return { emoji: '🌡️', name: 'Subtropical' };
+  return { emoji: '🌴', name: 'Tropical' };
+};
 
 // Get themed gradient for each country based on their flag colors or culture
 const getCountryGradient = (countryCode: string): string => {
@@ -164,24 +210,30 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
 
                         {/* Content */}
                         <div className="relative p-4 flex flex-col h-full transition-all duration-500" style={{ zIndex: 2 }}>
-                          {/* Top section - always visible */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <span
-                              className="transition-all duration-500"
-                              style={{
-                                fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
-                              }}
-                            >
-                              {country.flag}
-                            </span>
-                            <span className="text-xs text-white/40 font-mono transition-colors duration-300">
-                              {country.code}
-                            </span>
+                          {/* Top section - Flag and Code */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="transition-all duration-500"
+                                style={{
+                                  fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
+                                }}
+                              >
+                                {country.flag}
+                              </span>
+                              <span className="text-xs text-white/40 font-mono transition-colors duration-300">
+                                {country.code}
+                              </span>
+                            </div>
+                            {/* Time of day indicator */}
+                            <div className="text-lg transition-all duration-300">
+                              {getTimeBasedInfo(country.coordinates).icon}
+                            </div>
                           </div>
 
                           {/* Country name */}
                           <div
-                            className="text-white font-medium transition-all duration-500"
+                            className="text-white font-medium transition-all duration-500 mb-1"
                             style={{
                               fontSize: hoveredCountry === country.code ? '1.125rem' : '0.875rem',
                               fontWeight: hoveredCountry === country.code ? 700 : 500,
@@ -191,18 +243,39 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                             {country.name}
                           </div>
 
-                          {/* Capital - always visible */}
+                          {/* Capital with icon */}
                           {country.capital && (
-                            <div
-                              className="text-white/50 transition-all duration-300 mt-1"
-                              style={{
-                                fontSize: hoveredCountry === country.code ? '0.875rem' : '0.75rem',
-                                opacity: hoveredCountry === country.code ? 1 : 0.7
-                              }}
-                            >
-                              {country.capital}
+                            <div className="flex items-center gap-1 mb-2">
+                              <span className="text-white/30 text-xs">🏛️</span>
+                              <div
+                                className="text-white/50 transition-all duration-300"
+                                style={{
+                                  fontSize: hoveredCountry === country.code ? '0.875rem' : '0.7rem',
+                                  opacity: hoveredCountry === country.code ? 1 : 0.7
+                                }}
+                              >
+                                {country.capital}
+                              </div>
                             </div>
                           )}
+
+                          {/* Info badges - Always visible */}
+                          <div className="flex flex-wrap gap-1.5 mt-auto">
+                            {/* Climate zone badge */}
+                            <div className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                              <span className="text-xs">{getClimateZone(country.coordinates.lat).emoji}</span>
+                              <span className="text-white/70 text-[0.65rem] font-medium">
+                                {getClimateZone(country.coordinates.lat).name}
+                              </span>
+                            </div>
+
+                            {/* Time badge */}
+                            <div className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                              <span className="text-white/70 text-[0.65rem] font-medium">
+                                {getTimeBasedInfo(country.coordinates).label}
+                              </span>
+                            </div>
+                          </div>
 
                           {/* Expanded content on hover */}
                           <div
@@ -213,9 +286,16 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                               marginTop: hoveredCountry === country.code ? '12px' : '0px'
                             }}
                           >
-                            <div className="pt-3 border-t border-white/20">
-                              <div className="text-white/60 text-xs">
-                                📍 {country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°
+                            <div className="pt-3 border-t border-white/20 space-y-2">
+                              {/* Coordinates */}
+                              <div className="flex items-center gap-1.5 text-white/60 text-xs">
+                                <span>📍</span>
+                                <span>{country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°</span>
+                              </div>
+                              {/* Click to explore */}
+                              <div className="text-purple-300 text-xs font-medium flex items-center gap-1">
+                                <span>✨</span>
+                                <span>Click to explore weather</span>
                               </div>
                             </div>
                           </div>
@@ -270,24 +350,30 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
 
                     {/* Content */}
                     <div className="relative p-4 flex flex-col h-full transition-all duration-500" style={{ zIndex: 2 }}>
-                      {/* Top section - always visible */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className="transition-all duration-500"
-                          style={{
-                            fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
-                          }}
-                        >
-                          {country.flag}
-                        </span>
-                        <span className="text-xs text-white/40 font-mono transition-colors duration-300">
-                          {country.code}
-                        </span>
+                      {/* Top section - Flag and Code */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="transition-all duration-500"
+                            style={{
+                              fontSize: hoveredCountry === country.code ? '2.5rem' : '1.5rem'
+                            }}
+                          >
+                            {country.flag}
+                          </span>
+                          <span className="text-xs text-white/40 font-mono transition-colors duration-300">
+                            {country.code}
+                          </span>
+                        </div>
+                        {/* Time of day indicator */}
+                        <div className="text-lg transition-all duration-300">
+                          {getTimeBasedInfo(country.coordinates).icon}
+                        </div>
                       </div>
 
                       {/* Country name */}
                       <div
-                        className="text-white font-medium transition-all duration-500"
+                        className="text-white font-medium transition-all duration-500 mb-1"
                         style={{
                           fontSize: hoveredCountry === country.code ? '1.125rem' : '0.875rem',
                           fontWeight: hoveredCountry === country.code ? 700 : 500,
@@ -297,18 +383,39 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                         {country.name}
                       </div>
 
-                      {/* Capital - always visible */}
+                      {/* Capital with icon */}
                       {country.capital && (
-                        <div
-                          className="text-white/50 transition-all duration-300 mt-1"
-                          style={{
-                            fontSize: hoveredCountry === country.code ? '0.875rem' : '0.75rem',
-                            opacity: hoveredCountry === country.code ? 1 : 0.7
-                          }}
-                        >
-                          {country.capital}
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="text-white/30 text-xs">🏛️</span>
+                          <div
+                            className="text-white/50 transition-all duration-300"
+                            style={{
+                              fontSize: hoveredCountry === country.code ? '0.875rem' : '0.7rem',
+                              opacity: hoveredCountry === country.code ? 1 : 0.7
+                            }}
+                          >
+                            {country.capital}
+                          </div>
                         </div>
                       )}
+
+                      {/* Info badges - Always visible */}
+                      <div className="flex flex-wrap gap-1.5 mt-auto">
+                        {/* Climate zone badge */}
+                        <div className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                          <span className="text-xs">{getClimateZone(country.coordinates.lat).emoji}</span>
+                          <span className="text-white/70 text-[0.65rem] font-medium">
+                            {getClimateZone(country.coordinates.lat).name}
+                          </span>
+                        </div>
+
+                        {/* Time badge */}
+                        <div className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                          <span className="text-white/70 text-[0.65rem] font-medium">
+                            {getTimeBasedInfo(country.coordinates).label}
+                          </span>
+                        </div>
+                      </div>
 
                       {/* Expanded content on hover */}
                       <div
@@ -319,9 +426,16 @@ const CountryListView: React.FC<CountryListViewProps> = ({ onSelectCountry, isVi
                           marginTop: hoveredCountry === country.code ? '12px' : '0px'
                         }}
                       >
-                        <div className="pt-3 border-t border-white/20">
-                          <div className="text-white/60 text-xs">
-                            📍 {country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°
+                        <div className="pt-3 border-t border-white/20 space-y-2">
+                          {/* Coordinates */}
+                          <div className="flex items-center gap-1.5 text-white/60 text-xs">
+                            <span>📍</span>
+                            <span>{country.coordinates.lat.toFixed(2)}°, {country.coordinates.lon.toFixed(2)}°</span>
+                          </div>
+                          {/* Click to explore */}
+                          <div className="text-purple-300 text-xs font-medium flex items-center gap-1">
+                            <span>✨</span>
+                            <span>Click to explore weather</span>
                           </div>
                         </div>
                       </div>

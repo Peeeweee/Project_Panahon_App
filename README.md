@@ -2,6 +2,12 @@
 
 A beautiful, interactive weather application featuring a world map explorer and real-time weather data powered by Open-Meteo API.
 
+> **🚀 Just want to get started?** See [QUICK_SETUP.md](QUICK_SETUP.md) for a 2-command setup!
+
+## 🎉 No API Keys Required!
+
+This project is ready to run out of the box! Clone it and start immediately - no API keys, no sign-ups, no configuration hassles. Uses 100% free weather APIs.
+
 ## ✨ Features
 
 - **Interactive World Map**: Click on any country to get weather information
@@ -17,7 +23,35 @@ A beautiful, interactive weather application featuring a world map explorer and 
 - Node.js (v18 or higher)
 - npm or yarn
 
-### Installation
+### Installation & Setup
+
+**⚡ One-Command Setup (Recommended)**
+
+Clone and run - no configuration needed!
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd Project_Panahon_App
+
+# Install all dependencies (frontend + backend, creates .env automatically)
+npm run install:all
+
+# Start both servers
+npm start
+```
+
+**That's it!** The setup automatically:
+- ✅ Installs frontend dependencies
+- ✅ Installs backend dependencies
+- ✅ Creates `.env` configuration file
+- ✅ Starts both frontend (port 3000) and backend (port 3001) servers
+
+**No API keys, no manual configuration required!**
+
+---
+
+**Manual Installation** (if needed):
 
 1. **Install all dependencies** (both frontend and backend):
    ```bash
@@ -35,6 +69,8 @@ A beautiful, interactive weather application featuring a world map explorer and 
    cd ..
    ```
 
+2. **Setup is automatic!** The `.env` file will be created automatically from `.env.example` when you install or start the app.
+
 ### Running the Application
 
 **Option 1: Run both servers concurrently (Recommended)**
@@ -42,9 +78,10 @@ A beautiful, interactive weather application featuring a world map explorer and 
 npm start
 ```
 
-This will start:
-- Backend server on `http://localhost:3001`
-- Frontend dev server on `http://localhost:3000`
+This will:
+- ✅ Auto-setup configuration (if needed)
+- 🚀 Start backend server on `http://localhost:3001`
+- 🚀 Start frontend dev server on `http://localhost:3000`
 
 **Option 2: Run servers separately**
 

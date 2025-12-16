@@ -18,9 +18,10 @@ interface WeatherCardProps {
   countryPath?: string; // SVG path data for the country
   countryRect?: DOMRect; // Original position of the country on map
   onCityClick?: (city: City) => void; // Callback when a city is clicked
+  viewMode?: 'map' | 'list'; // Which view is this card being used in
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare, initialPosition, countryPath, countryRect, onCityClick }) => {
+const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onToggleFavorite, isFavorite, temperatureUnit, onShare, initialPosition, countryPath, countryRect, onCityClick, viewMode = 'map' }) => {
 
   // State to control whether to show regional map or static country
   const [showRegionalMap, setShowRegionalMap] = useState(false);
@@ -50,6 +51,51 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
   const handleBackToCountry = () => {
     setShowRegionalMap(false);
     setViewLevel('country');
+  };
+
+  // Get time-based info from coordinates
+  const getTimeBasedInfo = (lat: number, lon: number): { icon: string; label: string; greeting: string } => {
+    const now = new Date();
+    const hour = now.getUTCHours();
+    const timezoneOffset = Math.round(lon / 15);
+    const localHour = (hour + timezoneOffset + 24) % 24;
+
+    if (localHour >= 5 && localHour < 12) return { icon: '🌅', label: 'Morning', greeting: 'Good Morning' };
+    if (localHour >= 12 && localHour < 17) return { icon: '☀️', label: 'Afternoon', greeting: 'Good Afternoon' };
+    if (localHour >= 17 && localHour < 20) return { icon: '🌆', label: 'Evening', greeting: 'Good Evening' };
+    return { icon: '🌙', label: 'Night', greeting: 'Good Night' };
+  };
+
+  // Get climate zone based on latitude
+  const getClimateZone = (lat: number): { emoji: string; name: string } => {
+    const absLat = Math.abs(lat);
+    if (absLat > 66.5) return { emoji: '🧊', name: 'Polar' };
+    if (absLat > 60) return { emoji: '❄️', name: 'Subarctic' };
+    if (absLat > 40) return { emoji: '🍂', name: 'Temperate' };
+    if (absLat > 23.5) return { emoji: '🌡️', name: 'Subtropical' };
+    return { emoji: '🌴', name: 'Tropical' };
+  };
+
+  // Get local time string
+  const getLocalTime = (lon: number): string => {
+    const now = new Date();
+    const hour = now.getUTCHours();
+    const minute = now.getUTCMinutes();
+    const timezoneOffset = Math.round(lon / 15);
+    const localHour = (hour + timezoneOffset + 24) % 24;
+
+    const formattedHour = localHour.toString().padStart(2, '0');
+    const formattedMinute = minute.toString().padStart(2, '0');
+    return `${formattedHour}:${formattedMinute}`;
+  };
+
+  // Determine if it's day or night
+  const isDayTime = (lon: number): boolean => {
+    const now = new Date();
+    const hour = now.getUTCHours();
+    const timezoneOffset = Math.round(lon / 15);
+    const localHour = (hour + timezoneOffset + 24) % 24;
+    return localHour >= 6 && localHour < 18; // Day is 6 AM to 6 PM
   };
 
   // Keyboard navigation - Escape to go back
@@ -397,8 +443,8 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
                 </svg>
               )}
 
-              {/* Click hint for countries with regional data */}
-              {hasRegions && (
+              {/* Click hint for countries with regional data - Map View Only */}
+              {hasRegions && viewMode === 'map' && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 opacity-0 group-hover/leftpanel:opacity-100 transition-opacity duration-300">
                   <div className="bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-white/30 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -408,15 +454,283 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ data, onClose, isExiting, onT
                   </div>
                 </div>
               )}
+
             </>
           )}
 
-          {/* Country ISO Code at bottom */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20">
-            <div className="text-white/40 font-bold text-sm tracking-widest uppercase">
-              {data.isoCode || "WORLD"}
-            </div>
-          </div>
+          {/* Unified Region Information Card with Day/Night Theme - List View Only */}
+          {!showRegionalMap && data.coordinates && viewMode === 'list' && (() => {
+            const isDay = isDayTime(data.coordinates.lon);
+            const timeInfo = getTimeBasedInfo(data.coordinates.lat, data.coordinates.lon);
+            const climate = getClimateZone(data.coordinates.lat);
+
+            return (
+              <div
+                className="absolute inset-3 z-20 rounded-3xl overflow-hidden transition-all duration-700 animate-fade-in"
+                style={{
+                  background: isDay
+                    ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: isDay
+                    ? '1px solid rgba(255, 255, 255, 0.25)'
+                    : '1px solid rgba(139, 92, 246, 0.25)',
+                  boxShadow: isDay
+                    ? '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                    : '0 8px 32px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(139, 92, 246, 0.2)'
+                }}
+              >
+                {/* Animated gradient orbs */}
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 animate-pulse"
+                  style={{
+                    background: isDay
+                      ? 'radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)',
+                    animationDuration: '4s'
+                  }}
+                />
+                <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full blur-3xl opacity-20 animate-pulse"
+                  style={{
+                    background: isDay
+                      ? 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
+                    animationDuration: '6s'
+                  }}
+                />
+
+                {/* Content */}
+                <div className="relative h-full p-5 flex flex-col justify-between">
+                  {/* Header Section */}
+                  <div className="space-y-4">
+                    {/* Country Title & Icon */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3
+                          className="font-bold text-xl leading-tight mb-1 animate-slide-in-left"
+                          style={{
+                            color: isDay ? 'rgba(255, 255, 255, 0.95)' : 'rgba(233, 213, 255, 0.95)',
+                            textShadow: isDay
+                              ? '0 2px 8px rgba(0, 0, 0, 0.1)'
+                              : '0 2px 8px rgba(139, 92, 246, 0.3)'
+                          }}
+                        >
+                          {countryName}
+                        </h3>
+                        <p
+                          className="text-xs font-semibold tracking-widest animate-slide-in-left"
+                          style={{
+                            color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)',
+                            animationDelay: '100ms'
+                          }}
+                        >
+                          {data.isoCode}
+                        </p>
+                      </div>
+                      <div className="text-4xl animate-bounce-slow" style={{ animationDuration: '3s' }}>
+                        {timeInfo.icon}
+                      </div>
+                    </div>
+
+                    {/* Greeting & Time */}
+                    <div
+                      className="p-3 rounded-2xl animate-slide-in-left"
+                      style={{
+                        background: isDay
+                          ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                          : 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.05) 100%)',
+                        border: isDay
+                          ? '1px solid rgba(255, 255, 255, 0.2)'
+                          : '1px solid rgba(139, 92, 246, 0.2)',
+                        animationDelay: '200ms'
+                      }}
+                    >
+                      <p
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: isDay ? 'rgba(255, 255, 255, 0.9)' : 'rgba(233, 213, 255, 0.9)' }}
+                      >
+                        {timeInfo.greeting}
+                      </p>
+                      <p
+                        className="text-xs font-mono font-medium"
+                        style={{ color: isDay ? 'rgba(255, 255, 255, 0.6)' : 'rgba(233, 213, 255, 0.6)' }}
+                      >
+                        {getLocalTime(data.coordinates.lon)} • {timeInfo.label}
+                      </p>
+                    </div>
+
+                    {/* Stats Grid - Single unified style */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Climate */}
+                      <div
+                        className="p-3 rounded-xl transition-all duration-300 hover:scale-105 animate-fade-in"
+                        style={{
+                          background: isDay
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(139, 92, 246, 0.15)',
+                          border: isDay
+                            ? '1px solid rgba(255, 255, 255, 0.2)'
+                            : '1px solid rgba(139, 92, 246, 0.2)',
+                          animationDelay: '300ms'
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-2xl">{climate.emoji}</span>
+                          <span
+                            className="text-[9px] uppercase tracking-wider font-bold"
+                            style={{ color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)' }}
+                          >
+                            Climate
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs font-semibold"
+                          style={{ color: isDay ? 'rgba(255, 255, 255, 0.85)' : 'rgba(233, 213, 255, 0.85)' }}
+                        >
+                          {climate.name}
+                        </p>
+                      </div>
+
+                      {/* Hemisphere */}
+                      <div
+                        className="p-3 rounded-xl transition-all duration-300 hover:scale-105 animate-fade-in"
+                        style={{
+                          background: isDay
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(139, 92, 246, 0.15)',
+                          border: isDay
+                            ? '1px solid rgba(255, 255, 255, 0.2)'
+                            : '1px solid rgba(139, 92, 246, 0.2)',
+                          animationDelay: '350ms'
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-2xl">{data.coordinates.lat >= 0 ? '🌍' : '🌎'}</span>
+                          <span
+                            className="text-[9px] uppercase tracking-wider font-bold"
+                            style={{ color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)' }}
+                          >
+                            Hemisphere
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs font-semibold"
+                          style={{ color: isDay ? 'rgba(255, 255, 255, 0.85)' : 'rgba(233, 213, 255, 0.85)' }}
+                        >
+                          {data.coordinates.lat >= 0 ? 'Northern' : 'Southern'}
+                        </p>
+                      </div>
+
+                      {/* UTC Offset */}
+                      <div
+                        className="p-3 rounded-xl transition-all duration-300 hover:scale-105 animate-fade-in"
+                        style={{
+                          background: isDay
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(139, 92, 246, 0.15)',
+                          border: isDay
+                            ? '1px solid rgba(255, 255, 255, 0.2)'
+                            : '1px solid rgba(139, 92, 246, 0.2)',
+                          animationDelay: '400ms'
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-2xl">🕐</span>
+                          <span
+                            className="text-[9px] uppercase tracking-wider font-bold"
+                            style={{ color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)' }}
+                          >
+                            UTC
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs font-semibold font-mono"
+                          style={{ color: isDay ? 'rgba(255, 255, 255, 0.85)' : 'rgba(233, 213, 255, 0.85)' }}
+                        >
+                          {Math.round(data.coordinates.lon / 15) >= 0 ? '+' : ''}{Math.round(data.coordinates.lon / 15)}
+                        </p>
+                      </div>
+
+                      {/* Latitude */}
+                      <div
+                        className="p-3 rounded-xl transition-all duration-300 hover:scale-105 animate-fade-in"
+                        style={{
+                          background: isDay
+                            ? 'rgba(255, 255, 255, 0.15)'
+                            : 'rgba(139, 92, 246, 0.15)',
+                          border: isDay
+                            ? '1px solid rgba(255, 255, 255, 0.2)'
+                            : '1px solid rgba(139, 92, 246, 0.2)',
+                          animationDelay: '450ms'
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-2xl">📐</span>
+                          <span
+                            className="text-[9px] uppercase tracking-wider font-bold"
+                            style={{ color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)' }}
+                          >
+                            Latitude
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs font-semibold font-mono"
+                          style={{ color: isDay ? 'rgba(255, 255, 255, 0.85)' : 'rgba(233, 213, 255, 0.85)' }}
+                        >
+                          {Math.abs(data.coordinates.lat).toFixed(2)}° {data.coordinates.lat >= 0 ? 'N' : 'S'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Coordinates */}
+                  <div
+                    className="p-3 rounded-2xl flex items-center justify-between animate-slide-in-bottom"
+                    style={{
+                      background: isDay
+                        ? 'linear-gradient(to top, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                        : 'linear-gradient(to top, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.05) 100%)',
+                      border: isDay
+                        ? '1px solid rgba(255, 255, 255, 0.2)'
+                        : '1px solid rgba(139, 92, 246, 0.2)'
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📍</span>
+                      <span
+                        className="text-[9px] uppercase tracking-wider font-bold"
+                        style={{ color: isDay ? 'rgba(255, 255, 255, 0.5)' : 'rgba(233, 213, 255, 0.5)' }}
+                      >
+                        Coordinates
+                      </span>
+                    </div>
+                    <p
+                      className="text-xs font-mono font-semibold"
+                      style={{ color: isDay ? 'rgba(255, 255, 255, 0.8)' : 'rgba(233, 213, 255, 0.8)' }}
+                    >
+                      {data.coordinates.lat.toFixed(4)}°, {data.coordinates.lon.toFixed(4)}°
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Back Button - Visible when in regional map view */}
+          {showRegionalMap && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBackToCountry();
+              }}
+              className="absolute top-4 left-4 z-30 group p-2.5 bg-black/50 hover:bg-white/20 rounded-full transition-all backdrop-blur-md border border-white/30 shadow-lg hover:shadow-xl hover:scale-110"
+              title="Back to country view"
+            >
+              <svg className="w-5 h-5 text-white group-hover:text-purple-200 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* RIGHT PANEL: The "Glass" Card with Content */}
