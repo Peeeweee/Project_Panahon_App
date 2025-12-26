@@ -225,6 +225,35 @@ VITE_API_URL=http://localhost:3001/api
 - Make sure CORS is enabled in the backend (already configured)
 - Check that the API URL in frontend matches the backend URL
 
+## 🚀 Deployment
+
+### Deploy to Vercel (Recommended)
+
+This app is pre-configured for **zero-config deployment** to Vercel with an **always-on serverless backend**!
+
+**Quick Deploy:**
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Import your repository
+4. Click "Deploy"
+
+**That's it!** Your app will be live with:
+- ✅ Always-available API (serverless functions)
+- ✅ Automatic HTTPS
+- ✅ Global CDN
+- ✅ Auto-deployments on git push
+- ✅ **100% FREE** on Vercel's Hobby plan
+
+**📖 Full deployment guide**: See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+### Local Development
+
+For local development, the app automatically uses:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3001`
+
+No configuration changes needed when deploying!
+
 ## 📝 License
 
 This project is open source and available for educational purposes.

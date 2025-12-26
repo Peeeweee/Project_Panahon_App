@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { TemperatureUnit, convertTemperature } from '../utils/temperatureUtils';
 
+// API URL configuration - automatically uses correct endpoint
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ||
+  ((import.meta as any).env?.PROD ? "/api" : "http://localhost:3001/api");
+
 interface ForecastDay {
   date: string;
   tempMax: string;
@@ -54,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation, te
   useEffect(() => {
     if (isOpen && userLocation && activeTab === 'forecast') {
       setLoading(true);
-      fetch(`http://localhost:3001/api/weather/forecast/coordinates?lat=${userLocation.lat}&lon=${userLocation.lon}`)
+      fetch(`${API_BASE_URL}/weather/forecast/coordinates?lat=${userLocation.lat}&lon=${userLocation.lon}`)
         .then(res => res.json())
         .then(data => {
           setForecastData(data);
@@ -73,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, userLocation, te
       setLoading(true);
       Promise.all(
         globalCities.map(city =>
-          fetch(`http://localhost:3001/api/weather/coordinates?lat=${city.lat}&lon=${city.lon}`)
+          fetch(`${API_BASE_URL}/weather/coordinates?lat=${city.lat}&lon=${city.lon}`)
             .then(res => res.json())
             .then(data => ({ ...data, flag: city.flag, name: city.name, country: city.country }))
         )

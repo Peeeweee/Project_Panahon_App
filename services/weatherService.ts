@@ -1,6 +1,10 @@
 import { WeatherResult } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+// Automatically detect the correct API URL
+// In production (Vercel), use relative /api path (serverless functions)
+// In development, use localhost:3001/api (local Express server)
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ||
+  ((import.meta as any).env?.PROD ? "/api" : "http://localhost:3001/api");
 
 export const getWeather = async (location: string): Promise<WeatherResult> => {
   try {
